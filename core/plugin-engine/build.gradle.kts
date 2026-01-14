@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     // 2. 必须：作为被引用的库，这里要用 androidLibrary 而非 androidApplication
     alias(libs.plugins.androidLibrary)
+    // 3. 序列化：添加 Kotlin 序列化插件
+    alias(libs.plugins.kotlinSerialization)
+    // 4. Compose Multiplatform：用于资源管理
+    alias(libs.plugins.composeMultiplatform)
+    // 5. Compose Compiler：用于 Compose 编译
+    alias(libs.plugins.composeCompiler)
 }
 
 kotlin {
@@ -19,10 +25,21 @@ kotlin {
     jvm()
 
     sourceSets {
-        // 公共逻辑：MistySong 等模型类放在这里
         commonMain.dependencies {
-            // 如果需要 JSON 解析，可以加上这个
-            // implementation(libs.kotlinx.serialization.json)
+            implementation(project(":core:model"))
+            implementation(project(":core:network"))
+            implementation(libs.quickjs.kt)
+            implementation(libs.quickjs.kt.converter)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.coroutinesCore)
+            // Compose Resources 用于读取资源文件
+            implementation(compose.components.resources)
+        }
+        androidMain.dependencies {
+            implementation(libs.kotlinx.coroutinesAndroid)
+        }
+        jvmMain.dependencies {
+            implementation(libs.kotlinx.coroutinesSwing)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -31,7 +48,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.guang.misty.model"
+    namespace = "com.guang.misty.engine"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {

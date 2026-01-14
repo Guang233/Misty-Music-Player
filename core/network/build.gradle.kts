@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     // 2. 必须：作为被引用的库，这里要用 androidLibrary 而非 androidApplication
     alias(libs.plugins.androidLibrary)
+    // 3. 添加序列化插件
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -19,10 +21,24 @@ kotlin {
     jvm()
 
     sourceSets {
-        // 公共逻辑：MistySong 等模型类放在这里
+        // 公共逻辑：网络请求相关代码
         commonMain.dependencies {
-            // 如果需要 JSON 解析，可以加上这个
-            // implementation(libs.kotlinx.serialization.json)
+            // 依赖 core:model 模块
+            implementation(project(":core:model"))
+            // Ktor 核心库
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.client.cookies)
+            implementation(libs.ktor.serialization.kotlinx.json)
+        }
+        androidMain.dependencies {
+            // Android 平台特定的 HTTP 客户端
+            implementation(libs.ktor.client.android)
+        }
+        jvmMain.dependencies {
+            // JVM 平台特定的 HTTP 客户端
+            implementation(libs.ktor.client.cio)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -31,7 +47,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.guang.misty.model"
+    namespace = "com.guang.misty.network"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
