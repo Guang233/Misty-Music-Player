@@ -41,9 +41,15 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(libs.kotlinx.coroutinesSwing)
+            // Compose Runtime for resource loading
+            implementation(compose.runtime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+        jvmTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutinesTest)
         }
     }
 }

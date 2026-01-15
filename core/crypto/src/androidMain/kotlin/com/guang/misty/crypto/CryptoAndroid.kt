@@ -23,8 +23,8 @@ actual fun aesDecrypt(cipher: ByteArray, key: ByteArray, iv: ByteArray?): ByteAr
 actual fun aesEcbEncrypt(plain: ByteArray, key: ByteArray): ByteArray =
     aesEcbEncrypt(plain, key)
 
-actual fun aesEcbDecrypt(cipher: ByteArray, key: ByteArray): ByteArray =
-    aesEcbDecrypt(cipher, key)
+actual fun aesEcbDecrypt(cipherBytes: ByteArray, key: ByteArray): ByteArray =
+    aesEcbDecrypt(cipherBytes, key)
 
 actual fun ByteArray.encodeBase64(): String =
     encodeBase64()

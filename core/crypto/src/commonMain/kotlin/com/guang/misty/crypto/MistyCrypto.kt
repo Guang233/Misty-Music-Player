@@ -100,7 +100,7 @@ expect fun aesDecrypt(cipher: ByteArray, key: ByteArray, iv: ByteArray?): ByteAr
 // AES-ECB（无 IV）
 expect fun aesEcbEncrypt(plain: ByteArray, key: ByteArray): ByteArray
 
-expect fun aesEcbDecrypt(cipher: ByteArray, key: ByteArray): ByteArray
+expect fun aesEcbDecrypt(cipherBytes: ByteArray, key: ByteArray): ByteArray
 
 expect fun ByteArray.encodeBase64(): String
 

@@ -32,56 +32,71 @@ class MistyJsEngine(
     private fun injectMistyInternal() {
         // 创建桥接对象，将 suspend 函数包装为同步函数供 JS 调用
         quickJs.define("mistyInternal") {
-            /**
-             * 执行网络请求（从 JS 调用，需要同步包装）
-             */
-            fun performRequest(requestJson: String): String {
-                return runBlocking {
+            // 执行网络请求（从 JS 调用，需要同步包装）
+            function("performRequest") { args ->
+                val requestJson = args[0] as String
+                runBlocking {
                     bridge.networkRequest(requestJson)
                 }
             }
 
-            /**
-             * 记录日志
-             */
-            fun log(level: String, msg: String) {
+            // 记录日志
+            function("log") { args ->
+                val level = args[0] as String
+                val msg = args[1] as String
                 bridge.log(level, msg)
             }
 
             // region Crypto API：给 JS 暴露常见加解密能力
 
-            fun md5(text: String): String =
+            function("md5") { args ->
+                val text = args[0] as String
                 MistyCrypto.md5(text)
+            }
 
-            fun sha1(text: String): String =
+            function("sha1") { args ->
+                val text = args[0] as String
                 MistyCrypto.sha1(text)
+            }
 
-            fun sha256(text: String): String =
+            function("sha256") { args ->
+                val text = args[0] as String
                 MistyCrypto.sha256(text)
+            }
 
-            fun hmacSha256(data: String, key: String): String =
+            function("hmacSha256") { args ->
+                val data = args[0] as String
+                val key = args[1] as String
                 MistyCrypto.hmacSha256(data, key)
+            }
 
-            /**
-             * AES-CBC/PKCS5Padding，加密为 Base64 字符串。
-             * - key / iv 为 UTF-8 字符串，将在底层规范化到 16 字节（不足补 0，超出截断）。
-             * - 如果 iv 为空或 null，则使用全 0 IV。
-             */
-            fun aesEncryptToBase64(plainText: String, key: String, iv: String?): String =
+            // AES-CBC/PKCS5Padding，加密为 Base64 字符串
+            function("aesEncryptToBase64") { args ->
+                val plainText = args[0] as String
+                val key = args[1] as String
+                val iv = args[2] as? String
                 MistyCrypto.aesEncryptToBase64(plainText, key, iv)
+            }
 
-            fun aesDecryptFromBase64(cipherBase64: String, key: String, iv: String?): String =
+            function("aesDecryptFromBase64") { args ->
+                val cipherBase64 = args[0] as String
+                val key = args[1] as String
+                val iv = args[2] as? String
                 MistyCrypto.aesDecryptFromBase64(cipherBase64, key, iv)
+            }
 
-            /**
-             * AES-ECB/PKCS5Padding，加解密为 Base64 字符串。
-             * - 无 IV，仅使用 key。
-             */
-            fun aesEcbEncryptToBase64(plainText: String, key: String): String =
+            // AES-ECB/PKCS5Padding，加解密为 Base64 字符串
+            function("aesEcbEncryptToBase64") { args ->
+                val plainText = args[0] as String
+                val key = args[1] as String
                 MistyCrypto.aesEcbEncryptToBase64(plainText, key)
+            }
 
-            fun aesEcbDecryptFromBase64(cipherBase64: String, key: String): String =
+            function("aesEcbDecryptFromBase64") { args ->
+                val cipherBase64 = args[0] as String
+                val key = args[1] as String
                 MistyCrypto.aesEcbDecryptFromBase64(cipherBase64, key)
+            }
 
             // endregion
         }
@@ -95,7 +110,8 @@ class MistyJsEngine(
             // 使用 expect/actual 读取资源文件
             val bootstrapBytes = readResourceBytes("files/bootstrap.js")
             val bootstrapScript = bootstrapBytes.decodeToString()
-            quickJs.evaluate(bootstrapScript, "bootstrap.js") ?: ""
+            // 执行脚本，不需要返回值
+            quickJs.evaluate<Unit>(bootstrapScript, "bootstrap.js")
         } catch (e: Exception) {
             bridge.log("ERROR", "Failed to load bootstrap.js: ${e.message}")
             throw e
@@ -109,8 +125,8 @@ class MistyJsEngine(
      */
     suspend fun executeScript(script: String): String = withContext(Dispatchers.Default) {
         try {
-            val result = quickJs.evaluate(script) ?: "null"
-            result
+            val result: String? = quickJs.evaluate<String?>(script)
+            result ?: "null"
         } catch (e: Exception) {
             bridge.log("ERROR", "JavaScript execution error: ${e.message}")
             throw e
@@ -119,23 +135,26 @@ class MistyJsEngine(
 
     /**
      * 执行异步 JavaScript 函数
-     * @param script JavaScript 代码（应返回 Promise）
+     * @param script JavaScript 代码（应返回 Promise 或 async IIFE）
      * @return 执行结果（JSON 字符串）
      */
     suspend fun executeAsyncScript(script: String): String = withContext(Dispatchers.Default) {
         try {
-            // QuickJS 支持 Promise，但需要确保脚本返回 Promise
-            val wrappedScript = """
-                (async function() {
-                    return await ($script);
-                })();
-            """.trimIndent()
-            val result = quickJs.evaluate(wrappedScript) ?: "null"
-            result
+            // QuickJs 在执行时会自动处理 Promise
+            // 返回 Any? 然后转换为 String
+            val result: Any? = quickJs.evaluate<Any?>(script)
+            result?.toString() ?: "null"
         } catch (e: Exception) {
             bridge.log("ERROR", "JavaScript async execution error: ${e.message}")
             throw e
         }
+    }
+
+    /**
+     * 记录日志（直接调用 bridge，不经过 JS）
+     */
+    fun log(level: String, msg: String) {
+        bridge.log(level, msg)
     }
 
     /**

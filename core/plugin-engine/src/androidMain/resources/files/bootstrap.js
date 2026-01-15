@@ -6,6 +6,11 @@ if (typeof MistyPlugins === 'undefined') {
     MistyPlugins = {};
 }
 
+// 定义 misty SDK 根对象
+if (typeof misty === 'undefined') {
+    misty = {};
+}
+
 // HTTP 客户端 API
 misty.http = {
     /**
@@ -244,3 +249,5 @@ misty.crypto = {
     },
 };
 
+// 返回 undefined，避免脚本返回对象
+undefined;

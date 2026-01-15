@@ -81,11 +81,7 @@ class MistyPluginManager(
             val resultJson = jsEngine.executeScript(script)
             json.decodeFromString(resultJson)
         } catch (e: Exception) {
-            jsEngine.executeScript(
-                """
-                mistyInternal.log('ERROR', 'getPluginMeta failed for $pluginId: ${e.message}');
-                """.trimIndent()
-            )
+            jsEngine.log("ERROR", "getPluginMeta failed for $pluginId: ${e.message}")
             throw e
         }
     }
@@ -99,8 +95,9 @@ class MistyPluginManager(
      */
     suspend fun search(pluginId: String, keyword: String, page: Int): List<MistySong> {
         try {
+            // 使用同步 IIFE 调用插件函数（插件可以返回 Promise 或普通值）
             val script = """
-                (async function() {
+                (function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
                         throw new Error('Plugin not found: $pluginId');
                     }
@@ -108,12 +105,12 @@ class MistyPluginManager(
                     if (typeof plugin.search !== 'function') {
                         throw new Error('Plugin $pluginId does not have a search function');
                     }
-                    const result = await plugin.search('$keyword', $page);
+                    const result = plugin.search('$keyword', $page);
                     return JSON.stringify(result);
                 })();
             """.trimIndent()
 
-            val resultJson = jsEngine.executeAsyncScript(script)
+            val resultJson = jsEngine.executeScript(script)
 
             // 解析 JSON 结果
             // 假设插件返回的格式为 { songs: [...] } 或直接是数组
@@ -136,9 +133,7 @@ class MistyPluginManager(
 
             return result
         } catch (e: Exception) {
-            jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'Search failed: ${e.message}');
-            """.trimIndent())
+            jsEngine.log("ERROR", "Search failed: ${e.message}")
             throw e
         }
     }
@@ -166,7 +161,7 @@ class MistyPluginManager(
         try {
             val qualityStr = json.encodeToString(quality).trim('"')
             val script = """
-                (async function() {
+                (function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
                         throw new Error('Plugin not found: $pluginId');
                     }
@@ -174,17 +169,15 @@ class MistyPluginManager(
                     if (typeof plugin.getAudioResource !== 'function') {
                         throw new Error('Plugin $pluginId does not have a getAudioResource function');
                     }
-                    const result = await plugin.getAudioResource('$songId', '$qualityStr');
+                    const result = plugin.getAudioResource('$songId', '$qualityStr');
                     return JSON.stringify(result);
                 })();
             """.trimIndent()
 
-            val resultJson = jsEngine.executeAsyncScript(script)
+            val resultJson = jsEngine.executeScript(script)
             return json.decodeFromString(resultJson)
         } catch (e: Exception) {
-            jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'getAudioResource failed: ${e.message}');
-            """.trimIndent())
+            jsEngine.log("ERROR", "getAudioResource failed: ${e.message}")
             // 返回错误结果而非抛出异常
             return MistyAudioResourceResult(
                 songId = songId,
@@ -205,7 +198,7 @@ class MistyPluginManager(
     suspend fun getPlaylist(pluginId: String, playlistId: String): MistyPlaylist {
         try {
             val script = """
-                (async function() {
+                (function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
                         throw new Error('Plugin not found: $pluginId');
                     }
@@ -213,12 +206,12 @@ class MistyPluginManager(
                     if (typeof plugin.getPlaylist !== 'function') {
                         throw new Error('Plugin $pluginId does not have a getPlaylist function');
                     }
-                    const result = await plugin.getPlaylist('$playlistId');
+                    const result = plugin.getPlaylist('$playlistId');
                     return JSON.stringify(result);
                 })();
             """.trimIndent()
 
-            val resultJson = jsEngine.executeAsyncScript(script)
+            val resultJson = jsEngine.executeScript(script)
 
             val playlist: MistyPlaylist = try {
                 val jsonElement = json.parseToJsonElement(resultJson)
@@ -235,9 +228,7 @@ class MistyPluginManager(
 
             return playlist
         } catch (e: Exception) {
-            jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'getPlaylist failed: ${e.message}');
-            """.trimIndent())
+            jsEngine.log("ERROR", "getPlaylist failed: ${e.message}")
             throw e
         }
     }
@@ -252,7 +243,7 @@ class MistyPluginManager(
     suspend fun getAlbum(pluginId: String, albumId: String): MistyAlbum {
         try {
             val script = """
-                (async function() {
+                (function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
                         throw new Error('Plugin not found: $pluginId');
                     }
@@ -260,12 +251,12 @@ class MistyPluginManager(
                     if (typeof plugin.getAlbum !== 'function') {
                         throw new Error('Plugin $pluginId does not have a getAlbum function');
                     }
-                    const result = await plugin.getAlbum('$albumId');
+                    const result = plugin.getAlbum('$albumId');
                     return JSON.stringify(result);
                 })();
             """.trimIndent()
 
-            val resultJson = jsEngine.executeAsyncScript(script)
+            val resultJson = jsEngine.executeScript(script)
 
             val album: MistyAlbum = try {
                 val jsonElement = json.parseToJsonElement(resultJson)
@@ -282,9 +273,7 @@ class MistyPluginManager(
 
             return album
         } catch (e: Exception) {
-            jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'getAlbum failed: ${e.message}');
-            """.trimIndent())
+            jsEngine.log("ERROR", "getAlbum failed: ${e.message}")
             throw e
         }
     }
@@ -303,7 +292,7 @@ class MistyPluginManager(
     suspend fun getLyrics(pluginId: String, songId: String): MistyLyricBundle {
         try {
             val script = """
-                (async function() {
+                (function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
                         throw new Error('Plugin not found: $pluginId');
                     }
@@ -311,12 +300,12 @@ class MistyPluginManager(
                     if (typeof plugin.getLyrics !== 'function') {
                         throw new Error('Plugin $pluginId does not have a getLyrics function');
                     }
-                    const result = await plugin.getLyrics('$songId');
+                    const result = plugin.getLyrics('$songId');
                     return JSON.stringify(result);
                 })();
             """.trimIndent()
 
-            val resultJson = jsEngine.executeAsyncScript(script)
+            val resultJson = jsEngine.executeScript(script)
 
             val bundle: MistyLyricBundle = try {
                 val jsonElement = json.parseToJsonElement(resultJson)
@@ -336,9 +325,7 @@ class MistyPluginManager(
 
             return bundle
         } catch (e: Exception) {
-            jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'getLyrics failed: ${e.message}');
-            """.trimIndent())
+            jsEngine.log("ERROR", "getLyrics failed: ${e.message}")
             throw e
         }
     }
@@ -356,14 +343,13 @@ class MistyPluginManager(
                         MistyPlugins = {};
                     }
                     $pluginCode
+                    return undefined;
                 })();
             """.trimIndent()
 
             jsEngine.executeScript(script)
         } catch (e: Exception) {
-            jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'Failed to load plugin $pluginId: ${e.message}');
-            """.trimIndent())
+            jsEngine.log("ERROR", "Failed to load plugin $pluginId: ${e.message}")
             throw e
         }
     }
@@ -377,7 +363,7 @@ class MistyPluginManager(
         return try {
             val script = """
                 (function() {
-                    return MistyPlugins && MistyPlugins['$pluginId'] !== undefined;
+                    return String(MistyPlugins && MistyPlugins['$pluginId'] !== undefined);
                 })();
             """.trimIndent()
 
