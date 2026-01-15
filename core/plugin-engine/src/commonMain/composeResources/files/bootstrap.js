@@ -110,3 +110,129 @@ misty.log = {
         mistyInternal.log("DEBUG", msg);
     }
 };
+
+// 音频资源辅助 API（多音质）
+misty.audio = {
+    // 与 Kotlin 端 MistyAudioQuality 枚举保持一致
+    Quality: {
+        LOW: "LOW",
+        MEDIUM: "MEDIUM",
+        HIGH: "HIGH",
+        LOSSLESS: "LOSSLESS",
+    },
+
+    /**
+     * 创建单个音频资源对象（结构与 MistyAudioResource 对应）
+     */
+    createResource: function (options) {
+        return {
+            quality: options.quality,
+            url: options.url,
+            format: options.format || null,
+            bitrateKbps: options.bitrateKbps || null,
+            fileSizeBytes: options.fileSizeBytes || null,
+            md5: options.md5 || null,
+            extras: options.extras || {},
+        };
+    },
+
+    /**
+     * 根据不同音质的 URL 映射快速生成资源列表
+     * @param {Object} urlMap - { STANDARD: url1, HIGH: url2, LOSSLESS: url3, ... }
+     * @param {Object} opts - 其它可选字段（format, bitrateMap, sizeMap, md5Map, extras）
+     */
+    fromUrlMap: function (urlMap, opts = {}) {
+        const resources = [];
+        const bitrateMap = opts.bitrateMap || {};
+        const sizeMap = opts.sizeMap || {};
+        const md5Map = opts.md5Map || {};
+        const format = opts.format || null;
+        const extras = opts.extras || {};
+
+        Object.keys(urlMap).forEach(function (qualityKey) {
+            const url = urlMap[qualityKey];
+            if (!url) return;
+            resources.push(misty.audio.createResource({
+                quality: qualityKey,
+                url: url,
+                format: format,
+                bitrateKbps: bitrateMap[qualityKey] || null,
+                fileSizeBytes: sizeMap[qualityKey] || null,
+                md5: md5Map[qualityKey] || null,
+                extras: extras,
+            }));
+        });
+
+        return resources;
+    },
+
+    /**
+     * 创建音频资源 Bundle（与 MistyAudioResourceBundle 对应）
+     * @param {string} songId
+     * @param {Array} resources - MistyAudioResource 数组
+     */
+    createBundle: function (songId, resources) {
+        return {
+            songId: songId,
+            resources: resources || [],
+        };
+    },
+
+    /**
+     * 根据 URL 映射快速生成 Bundle
+     * @param {string} songId
+     * @param {Object} urlMap - { STANDARD: url1, HIGH: url2, LOSSLESS: url3, ... }
+     * @param {Object} opts - 其它可选字段（format, bitrateMap, sizeMap, md5Map, extras）
+     */
+    bundleFromUrlMap: function (songId, urlMap, opts = {}) {
+        const resources = misty.audio.fromUrlMap(urlMap, opts);
+        return misty.audio.createBundle(songId, resources);
+    },
+};
+
+// 加解密辅助 API
+misty.crypto = {
+    /**
+     * 文本 Hash
+     */
+    md5: function (text) {
+        return mistyInternal.md5(String(text));
+    },
+    sha1: function (text) {
+        return mistyInternal.sha1(String(text));
+    },
+    sha256: function (text) {
+        return mistyInternal.sha256(String(text));
+    },
+    hmacSha256: function (data, key) {
+        return mistyInternal.hmacSha256(String(data), String(key));
+    },
+
+    /**
+     * AES-CBC/PKCS5Padding，加解密（Base64 编码）
+     *
+     * 注意：
+     * - key / iv 为 UTF-8 字符串，底层会规范化到 16 字节（不足补 0，超出截断）。
+     * - 如果 iv 为空，则使用全 0 IV。
+     */
+    aesEncryptToBase64: function (plainText, key, iv) {
+        return mistyInternal.aesEncryptToBase64(String(plainText), String(key), iv != null ? String(iv) : null);
+    },
+    aesDecryptFromBase64: function (cipherBase64, key, iv) {
+        return mistyInternal.aesDecryptFromBase64(String(cipherBase64), String(key), iv != null ? String(iv) : null);
+    },
+
+    /**
+     * AES-ECB/PKCS5Padding，加解密（Base64 编码）
+     *
+     * 注意：
+     * - 无 IV，仅使用 key；key 为 UTF-8 字符串，底层会规范化到 16 字节。
+     */
+    aesEcbEncryptToBase64: function (plainText, key) {
+        return mistyInternal.aesEcbEncryptToBase64(String(plainText), String(key));
+    },
+    aesEcbDecryptFromBase64: function (cipherBase64, key) {
+        return mistyInternal.aesEcbDecryptFromBase64(String(cipherBase64), String(key));
+    },
+};
+

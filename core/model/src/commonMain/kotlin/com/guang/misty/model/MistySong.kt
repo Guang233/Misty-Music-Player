@@ -9,7 +9,6 @@ data class MistySong (
     val name: String,
     val artists: List<MistyArtist>,
     val album: MistyAlbum? = null,
-    val url: String? = null,
     val coverUrl: String? = null,
     val extras: Map<String, String> = emptyMap(),
 ) {

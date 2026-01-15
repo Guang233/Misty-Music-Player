@@ -2,6 +2,7 @@ package com.guang.misty.engine
 
 import com.dokar.quickjs.QuickJs
 import com.dokar.quickjs.binding.define
+import com.guang.misty.crypto.MistyCrypto
 import com.guang.misty.engine.bridge.MistyBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -30,7 +31,7 @@ class MistyJsEngine(
      */
     private fun injectMistyInternal() {
         // 创建桥接对象，将 suspend 函数包装为同步函数供 JS 调用
-        quickJs.define("mistyInternal"){
+        quickJs.define("mistyInternal") {
             /**
              * 执行网络请求（从 JS 调用，需要同步包装）
              */
@@ -46,6 +47,43 @@ class MistyJsEngine(
             fun log(level: String, msg: String) {
                 bridge.log(level, msg)
             }
+
+            // region Crypto API：给 JS 暴露常见加解密能力
+
+            fun md5(text: String): String =
+                MistyCrypto.md5(text)
+
+            fun sha1(text: String): String =
+                MistyCrypto.sha1(text)
+
+            fun sha256(text: String): String =
+                MistyCrypto.sha256(text)
+
+            fun hmacSha256(data: String, key: String): String =
+                MistyCrypto.hmacSha256(data, key)
+
+            /**
+             * AES-CBC/PKCS5Padding，加密为 Base64 字符串。
+             * - key / iv 为 UTF-8 字符串，将在底层规范化到 16 字节（不足补 0，超出截断）。
+             * - 如果 iv 为空或 null，则使用全 0 IV。
+             */
+            fun aesEncryptToBase64(plainText: String, key: String, iv: String?): String =
+                MistyCrypto.aesEncryptToBase64(plainText, key, iv)
+
+            fun aesDecryptFromBase64(cipherBase64: String, key: String, iv: String?): String =
+                MistyCrypto.aesDecryptFromBase64(cipherBase64, key, iv)
+
+            /**
+             * AES-ECB/PKCS5Padding，加解密为 Base64 字符串。
+             * - 无 IV，仅使用 key。
+             */
+            fun aesEcbEncryptToBase64(plainText: String, key: String): String =
+                MistyCrypto.aesEcbEncryptToBase64(plainText, key)
+
+            fun aesEcbDecryptFromBase64(cipherBase64: String, key: String): String =
+                MistyCrypto.aesEcbDecryptFromBase64(cipherBase64, key)
+
+            // endregion
         }
     }
 

@@ -28,6 +28,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:model"))
             implementation(project(":core:network"))
+            implementation(project(":core:crypto"))
             implementation(libs.quickjs.kt)
             implementation(libs.quickjs.kt.converter)
             implementation(libs.kotlinx.serialization.json)
