@@ -1,6 +1,7 @@
 package com.guang.misty.engine
 
 import com.guang.misty.model.*
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
@@ -143,53 +144,54 @@ class MistyPluginManager(
     }
 
     /**
-     * 获取某首歌的多音质音频资源。
+     * 获取指定音质的音频资源。
      *
-     * 插件侧约定：实现 plugin.getAudioResources(songId)，返回：
-     * - 直接为 MistyAudioResourceBundle 对象，或
-     * - 对象 { bundle: { ... }, ... } 或 { audioResourceBundle: { ... }, ... }。
+     * 插件侧约定：实现 plugin.getAudioResource(songId, quality)，返回 MistyAudioResourceResult：
+     * - songId: 歌曲 ID
+     * - requestedQuality: 请求的音质
+     * - resource: 实际返回的资源（可能为 null 表示失败）
+     *   - resource.quality: 实际返回的音质（可能与请求不同，表示降级）
+     * - error: 错误信息（如果失败）
+     *
+     * @param pluginId 插件 ID
+     * @param songId 歌曲 ID
+     * @param quality 请求的音质
+     * @return 音频资源请求结果
      */
-    suspend fun getAudioResources(pluginId: String, songId: String): MistyAudioResourceBundle {
+    suspend fun getAudioResource(
+        pluginId: String,
+        songId: String,
+        quality: MistyAudioQuality
+    ): MistyAudioResourceResult {
         try {
+            val qualityStr = json.encodeToString(quality).trim('"')
             val script = """
                 (async function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
                         throw new Error('Plugin not found: $pluginId');
                     }
                     const plugin = MistyPlugins['$pluginId'];
-                    if (typeof plugin.getAudioResources !== 'function') {
-                        throw new Error('Plugin $pluginId does not have a getAudioResources function');
+                    if (typeof plugin.getAudioResource !== 'function') {
+                        throw new Error('Plugin $pluginId does not have a getAudioResource function');
                     }
-                    const result = await plugin.getAudioResources('$songId');
+                    const result = await plugin.getAudioResource('$songId', '$qualityStr');
                     return JSON.stringify(result);
                 })();
             """.trimIndent()
 
             val resultJson = jsEngine.executeAsyncScript(script)
-
-            val bundle: MistyAudioResourceBundle = try {
-                val jsonElement = json.parseToJsonElement(resultJson)
-                when {
-                    jsonElement.jsonObject.containsKey("bundle") ->
-                        json.decodeFromString(jsonElement.jsonObject["bundle"].toString())
-
-                    jsonElement.jsonObject.containsKey("audioResourceBundle") ->
-                        json.decodeFromString(jsonElement.jsonObject["audioResourceBundle"].toString())
-
-                    else ->
-                        json.decodeFromString(resultJson)
-                }
-            } catch (e: Exception) {
-                // 退化为直接解析 bundle
-                json.decodeFromString(resultJson)
-            }
-
-            return bundle
+            return json.decodeFromString(resultJson)
         } catch (e: Exception) {
             jsEngine.executeScript("""
-                mistyInternal.log('ERROR', 'getAudioResources failed: ${e.message}');
+                mistyInternal.log('ERROR', 'getAudioResource failed: ${e.message}');
             """.trimIndent())
-            throw e
+            // 返回错误结果而非抛出异常
+            return MistyAudioResourceResult(
+                songId = songId,
+                requestedQuality = quality,
+                resource = null,
+                error = e.message ?: "Unknown error"
+            )
         }
     }
 

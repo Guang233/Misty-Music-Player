@@ -111,18 +111,26 @@ misty.log = {
     }
 };
 
-// 音频资源辅助 API（多音质）
+// 音频资源辅助 API（按指定音质请求）
 misty.audio = {
     // 与 Kotlin 端 MistyAudioQuality 枚举保持一致
     Quality: {
-        LOW: "LOW",
-        MEDIUM: "MEDIUM",
-        HIGH: "HIGH",
-        LOSSLESS: "LOSSLESS",
+        STANDARD: "STANDARD",   // 标准音质
+        HIGH: "HIGH",           // 高音质
+        LOSSLESS: "LOSSLESS",   // 无损音质
+        HI_RES: "HI_RES",       // Hi-Res 高解析度
     },
 
     /**
      * 创建单个音频资源对象（结构与 MistyAudioResource 对应）
+     * @param {Object} options
+     * @param {string} options.quality - 实际音质（可能与请求不同，表示降级）
+     * @param {string} options.url - 音频 URL
+     * @param {string} options.format - 格式（如 "mp3", "flac"）
+     * @param {number} options.bitrateKbps - 比特率（kbps）
+     * @param {number} options.fileSizeBytes - 文件大小（字节）
+     * @param {string} options.md5 - 校验和
+     * @param {Object} options.extras - 额外信息
      */
     createResource: function (options) {
         return {
@@ -137,56 +145,56 @@ misty.audio = {
     },
 
     /**
-     * 根据不同音质的 URL 映射快速生成资源列表
-     * @param {Object} urlMap - { STANDARD: url1, HIGH: url2, LOSSLESS: url3, ... }
-     * @param {Object} opts - 其它可选字段（format, bitrateMap, sizeMap, md5Map, extras）
+     * 创建音频资源请求结果（与 MistyAudioResourceResult 对应）
+     *
+     * 用于处理「按指定音质请求」的场景：
+     * - 成功：resource 不为 null，resource.quality 表示实际音质
+     * - 降级：resource.quality != requestedQuality
+     * - 失败：resource 为 null，error 包含错误信息
+     *
+     * @param {string} songId - 歌曲 ID
+     * @param {string} requestedQuality - 请求的音质（如 "LOSSLESS"）
+     * @param {Object|null} resource - 实际返回的资源（可能为 null）
+     * @param {string|null} error - 错误信息（可选）
      */
-    fromUrlMap: function (urlMap, opts = {}) {
-        const resources = [];
-        const bitrateMap = opts.bitrateMap || {};
-        const sizeMap = opts.sizeMap || {};
-        const md5Map = opts.md5Map || {};
-        const format = opts.format || null;
-        const extras = opts.extras || {};
-
-        Object.keys(urlMap).forEach(function (qualityKey) {
-            const url = urlMap[qualityKey];
-            if (!url) return;
-            resources.push(misty.audio.createResource({
-                quality: qualityKey,
-                url: url,
-                format: format,
-                bitrateKbps: bitrateMap[qualityKey] || null,
-                fileSizeBytes: sizeMap[qualityKey] || null,
-                md5: md5Map[qualityKey] || null,
-                extras: extras,
-            }));
-        });
-
-        return resources;
-    },
-
-    /**
-     * 创建音频资源 Bundle（与 MistyAudioResourceBundle 对应）
-     * @param {string} songId
-     * @param {Array} resources - MistyAudioResource 数组
-     */
-    createBundle: function (songId, resources) {
+    createResult: function (songId, requestedQuality, resource, error) {
         return {
             songId: songId,
-            resources: resources || [],
+            requestedQuality: requestedQuality,
+            resource: resource || null,
+            error: error || null,
         };
     },
 
     /**
-     * 根据 URL 映射快速生成 Bundle
+     * 快速创建成功结果
      * @param {string} songId
-     * @param {Object} urlMap - { STANDARD: url1, HIGH: url2, LOSSLESS: url3, ... }
-     * @param {Object} opts - 其它可选字段（format, bitrateMap, sizeMap, md5Map, extras）
+     * @param {string} requestedQuality - 请求的音质
+     * @param {string} actualQuality - 实际返回的音质（可能与请求不同，表示降级）
+     * @param {string} url - 音频 URL
+     * @param {Object} opts - 其它可选字段（format, bitrateKbps, fileSizeBytes, md5, extras）
      */
-    bundleFromUrlMap: function (songId, urlMap, opts = {}) {
-        const resources = misty.audio.fromUrlMap(urlMap, opts);
-        return misty.audio.createBundle(songId, resources);
+    successResult: function (songId, requestedQuality, actualQuality, url, opts = {}) {
+        const resource = misty.audio.createResource({
+            quality: actualQuality,
+            url: url,
+            format: opts.format || null,
+            bitrateKbps: opts.bitrateKbps || null,
+            fileSizeBytes: opts.fileSizeBytes || null,
+            md5: opts.md5 || null,
+            extras: opts.extras || {},
+        });
+        return misty.audio.createResult(songId, requestedQuality, resource, null);
+    },
+
+    /**
+     * 快速创建失败结果
+     * @param {string} songId
+     * @param {string} requestedQuality - 请求的音质
+     * @param {string} error - 错误信息
+     */
+    errorResult: function (songId, requestedQuality, error) {
+        return misty.audio.createResult(songId, requestedQuality, null, error);
     },
 };
 
