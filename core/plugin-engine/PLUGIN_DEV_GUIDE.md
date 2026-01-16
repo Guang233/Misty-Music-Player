@@ -47,6 +47,8 @@
   - 获取多音质音频资源
   - 通过 `misty.http` 访问网络，通过 `misty.log` 输出日志
 
+> ⚠️ **重要提示**：由于 QuickJS-kt 引擎的限制，**插件函数必须使用同步函数（普通 `function`）**，而不是 `async function`。详见下文「同步函数要求」章节。
+
 ---
 
 ## 运行环境与全局对象
@@ -60,6 +62,43 @@
   - `misty.audio`：多音质辅助工具。
 
 你**不需要**自己定义这些对象，只需要往 `MistyPlugins` 里挂插件即可。
+
+---
+
+## 同步函数要求（重要）
+
+由于 Misty 使用的 QuickJS-kt 引擎的技术限制，**Kotlin 侧调用 `evaluate()` 时不会自动等待 JavaScript Promise**。这意味着如果你使用 `async function`，返回的将是 Promise 对象本身，而不是 Promise 解析后的值，导致序列化失败。
+
+### ❌ 错误写法：使用 async function
+
+```javascript
+// 错误！async 函数返回 Promise，Kotlin 侧无法正确解析
+async search(keyword, page) {
+  const resp = await misty.http.get(...);
+  return JSON.parse(resp);
+}
+```
+
+### ✅ 正确写法：使用普通 function
+
+```javascript
+// 正确！使用普通函数，misty.http 内部会同步返回结果
+search: function(keyword, page) {
+  var resp = misty.http.get(...);
+  return JSON.parse(resp);
+}
+```
+
+### 为什么 `misty.http` 可以直接使用？
+
+`misty.http` 的网络请求由 Kotlin 侧的桥接层（Bridge）实现，它会**同步阻塞**直到网络请求完成，然后返回结果。因此，即使网络请求本身是异步的，在 JavaScript 插件中调用 `misty.http.get()` 等方法时，你可以直接获取返回值，无需使用 `await`。
+
+### 最佳实践
+
+1. **不要使用 `async`/`await` 关键字**
+2. **使用 `var` 或 `let` 声明变量**（QuickJS 支持 ES6，但建议保持兼容性）
+3. **使用字符串拼接而非模板字符串**（提高兼容性）
+4. **使用 `function` 关键字定义方法**
 
 ---
 
@@ -110,19 +149,19 @@ MistyPlugins[PLUGIN_ID] = {
   },
 
   // 必选：搜索歌曲（必须实现）
-  async search(keyword, page) { /* ... */ },
+  search: function(keyword, page) { /* ... */ },
 
   // 建议实现：获取歌单详情
-  async getPlaylist(playlistId) { /* ... */ },
+  getPlaylist: function(playlistId) { /* ... */ },
 
   // 建议实现：获取专辑详情
-  async getAlbum(albumId) { /* ... */ },
+  getAlbum: function(albumId) { /* ... */ },
 
   // 建议实现：获取歌词
-  async getLyrics(songId) { /* ... */ },
+  getLyrics: function(songId) { /* ... */ },
 
   // 必选：获取指定音质音频资源（必须实现，用于实际播放）
-  async getAudioResource(songId, quality) { /* ... */ },
+  getAudioResource: function(songId, quality) { /* ... */ },
 };
 ```
 
@@ -528,7 +567,7 @@ const plainEcb = misty.crypto.aesEcbDecryptFromBase64(
 **JS 签名：**
 
 ```javascript
-async function search(keyword, page) => MistySong[] | { songs: MistySong[], ... }
+function search(keyword, page) => MistySong[] | { songs: MistySong[], ... }
 ```
 
 **参数：**
@@ -544,7 +583,7 @@ async function search(keyword, page) => MistySong[] | { songs: MistySong[], ... 
 **JS 签名：**
 
 ```javascript
-async function getPlaylist(playlistId) => MistyPlaylist | { playlist: MistyPlaylist, ... }
+function getPlaylist(playlistId) => MistyPlaylist | { playlist: MistyPlaylist, ... }
 ```
 
 **参数：**
@@ -559,7 +598,7 @@ async function getPlaylist(playlistId) => MistyPlaylist | { playlist: MistyPlayl
 **JS 签名：**
 
 ```javascript
-async function getAlbum(albumId) => MistyAlbum | { album: MistyAlbum, ... }
+function getAlbum(albumId) => MistyAlbum | { album: MistyAlbum, ... }
 ```
 
 **参数：**
@@ -574,7 +613,7 @@ async function getAlbum(albumId) => MistyAlbum | { album: MistyAlbum, ... }
 **JS 签名：**
 
 ```javascript
-async function getLyrics(songId) => MistyLyricBundle | { bundle: MistyLyricBundle, ... }
+function getLyrics(songId) => MistyLyricBundle | { bundle: MistyLyricBundle, ... }
 ```
 
 **参数：**
@@ -589,7 +628,7 @@ async function getLyrics(songId) => MistyLyricBundle | { bundle: MistyLyricBundl
 **JS 签名（插件必须实现）：**
 
 ```javascript
-async function getAudioResource(songId, quality) => MistyAudioResourceResult
+function getAudioResource(songId, quality) => MistyAudioResourceResult
 ```
 
 **参数：**
@@ -602,15 +641,15 @@ async function getAudioResource(songId, quality) => MistyAudioResourceResult
 **推荐实现：**
 
 ```javascript
-async function getAudioResource(songId, quality) {
-  misty.log.info(`[${PLUGIN_ID}] getAudioResource: songId=${songId}, quality=${quality}`);
+getAudioResource: function(songId, quality) {
+  misty.log.info("[" + PLUGIN_ID + "] getAudioResource: songId=" + songId + ", quality=" + quality);
 
   try {
-    // 1. 请求后端 API，传入期望音质
-    const resp = await misty.http.get(
-      `https://api.example.com/audio/${encodeURIComponent(songId)}?quality=${quality}`
+    // 1. 请求后端 API，传入期望音质（misty.http 会同步阻塞等待响应）
+    var resp = misty.http.get(
+      "https://api.example.com/audio/" + encodeURIComponent(songId) + "?quality=" + quality
     );
-    const data = JSON.parse(resp);
+    var data = JSON.parse(resp);
 
     // 2. 检查是否有可用资源
     if (!data.url) {
@@ -632,7 +671,7 @@ async function getAudioResource(songId, quality) {
       }
     );
   } catch (err) {
-    misty.log.error(`[${PLUGIN_ID}] getAudioResource failed: ${err.message}`);
+    misty.log.error("[" + PLUGIN_ID + "] getAudioResource failed: " + err.message);
     return misty.audio.errorResult(songId, quality, err.message);
   }
 }
@@ -679,23 +718,23 @@ MistyPlugins[PLUGIN_ID] = {
   },
 
   // 必选：搜索歌曲
-  async search(keyword, page) {
-    misty.log.info(`[${PLUGIN_ID}] search: keyword=${keyword}, page=${page}`);
-    const resp = await misty.http.get(
-      `https://api.example.com/search?q=${encodeURIComponent(keyword)}&page=${page}`
+  search: function(keyword, page) {
+    misty.log.info("[" + PLUGIN_ID + "] search: keyword=" + keyword + ", page=" + page);
+    var resp = misty.http.get(
+      "https://api.example.com/search?q=" + encodeURIComponent(keyword) + "&page=" + page
     );
-    const data = JSON.parse(resp);
+    var data = JSON.parse(resp);
     // 假设 data.songs 就是符合 MistySong 结构的数组
     return data.songs || [];
   },
 
   // 获取歌单
-  async getPlaylist(playlistId) {
-    misty.log.info(`[${PLUGIN_ID}] getPlaylist: id=${playlistId}`);
-    const resp = await misty.http.get(
-      `https://api.example.com/playlist/${encodeURIComponent(playlistId)}`
+  getPlaylist: function(playlistId) {
+    misty.log.info("[" + PLUGIN_ID + "] getPlaylist: id=" + playlistId);
+    var resp = misty.http.get(
+      "https://api.example.com/playlist/" + encodeURIComponent(playlistId)
     );
-    const data = JSON.parse(resp);
+    var data = JSON.parse(resp);
     // 直接返回一个 MistyPlaylist 对象
     return {
       id: data.id,
@@ -713,12 +752,12 @@ MistyPlugins[PLUGIN_ID] = {
   },
 
   // 获取专辑
-  async getAlbum(albumId) {
-    misty.log.info(`[${PLUGIN_ID}] getAlbum: id=${albumId}`);
-    const resp = await misty.http.get(
-      `https://api.example.com/album/${encodeURIComponent(albumId)}`
+  getAlbum: function(albumId) {
+    misty.log.info("[" + PLUGIN_ID + "] getAlbum: id=" + albumId);
+    var resp = misty.http.get(
+      "https://api.example.com/album/" + encodeURIComponent(albumId)
     );
-    const data = JSON.parse(resp);
+    var data = JSON.parse(resp);
     return {
       id: data.id,
       source: PLUGIN_ID,
@@ -734,14 +773,14 @@ MistyPlugins[PLUGIN_ID] = {
   },
 
   // 获取歌词
-  async getLyrics(songId) {
-    misty.log.info(`[${PLUGIN_ID}] getLyrics: songId=${songId}`);
-    const resp = await misty.http.get(
-      `https://api.example.com/lyrics/${encodeURIComponent(songId)}`
+  getLyrics: function(songId) {
+    misty.log.info("[" + PLUGIN_ID + "] getLyrics: songId=" + songId);
+    var resp = misty.http.get(
+      "https://api.example.com/lyrics/" + encodeURIComponent(songId)
     );
-    const data = JSON.parse(resp);
+    var data = JSON.parse(resp);
     // 返回 MistyLyricBundle
-    const lyrics = [];
+    var lyrics = [];
     if (data.original) {
       lyrics.push({
         content: data.original,
@@ -763,21 +802,21 @@ MistyPlugins[PLUGIN_ID] = {
   },
 
   // 获取指定音质音频资源
-  async getAudioResource(songId, quality) {
-    misty.log.info(`[${PLUGIN_ID}] getAudioResource: songId=${songId}, quality=${quality}`);
+  getAudioResource: function(songId, quality) {
+    misty.log.info("[" + PLUGIN_ID + "] getAudioResource: songId=" + songId + ", quality=" + quality);
 
     try {
-      const resp = await misty.http.get(
-        `https://api.example.com/audio/${encodeURIComponent(songId)}?quality=${quality}`
+      var resp = misty.http.get(
+        "https://api.example.com/audio/" + encodeURIComponent(songId) + "?quality=" + quality
       );
-      const data = JSON.parse(resp);
+      var data = JSON.parse(resp);
 
       if (!data.url) {
         return misty.audio.errorResult(songId, quality, "No audio resource available");
       }
 
       // 后端可能返回不同音质（降级）
-      const actualQuality = data.actualQuality || quality;
+      var actualQuality = data.actualQuality || quality;
 
       return misty.audio.successResult(
         songId,
@@ -791,7 +830,7 @@ MistyPlugins[PLUGIN_ID] = {
         }
       );
     } catch (err) {
-      misty.log.error(`[${PLUGIN_ID}] getAudioResource failed: ${err.message}`);
+      misty.log.error("[" + PLUGIN_ID + "] getAudioResource failed: " + err.message);
       return misty.audio.errorResult(songId, quality, err.message);
     }
   },

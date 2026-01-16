@@ -1,11 +1,10 @@
 package com.guang.misty.ui.screens.settings.plugins
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,16 +12,20 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guang.misty.util.BackHandler
+import com.guang.misty.util.FilePicker
 import misty.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -55,8 +58,14 @@ fun PluginManagementScreen(
     val state by viewModel.state.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
+    // Snackbar 状态
+    val snackbarHostState = remember { SnackbarHostState() }
+    
     // 删除确认对话框状态
     var pluginToDelete by remember { mutableStateOf<PluginUiState?>(null) }
+    
+    // 文件选择器状态
+    var showFilePicker by remember { mutableStateOf(false) }
     
     // 判断是否有 dialog 打开
     val hasDialogOpen = state.importDialogVisible || pluginToDelete != null
@@ -69,6 +78,32 @@ fun PluginManagementScreen(
             !hasDialogOpen -> onNavigateBack()
         }
     }
+    
+    // 显示错误消息
+    val errorMessage = state.error?.let { formatPluginError(it) }
+    LaunchedEffect(state.error) {
+        if (errorMessage != null) {
+            snackbarHostState.showSnackbar(
+                message = errorMessage,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.clearError()
+        }
+    }
+    
+    // 文件选择器
+    FilePicker(
+        show = showFilePicker,
+        fileExtensions = listOf("js"),
+        onResult = { result ->
+            showFilePicker = false
+            if (result != null) {
+                // 将文件内容填入导入框并自动导入
+                viewModel.updateImportText(result.content)
+                viewModel.importPluginFromText(result.content)
+            }
+        }
+    )
     
     Scaffold(
         topBar = {
@@ -94,6 +129,9 @@ fun PluginManagementScreen(
                 )
             )
         },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { viewModel.showImportDialog() },
@@ -111,19 +149,37 @@ fun PluginManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (state.isLoading) {
-                // 加载中
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (state.plugins.isEmpty()) {
-                // 空状态
+            // 加载中状态 - 带淡入淡出动画
+            AnimatedVisibility(
+                visible = state.isLoading,
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(200)),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                CircularProgressIndicator()
+            }
+            
+            // 空状态 - 带缩放淡入动画
+            AnimatedVisibility(
+                visible = !state.isLoading && state.plugins.isEmpty(),
+                enter = fadeIn(animationSpec = tween(400)) + scaleIn(
+                    initialScale = 0.8f,
+                    animationSpec = tween(400, easing = FastOutSlowInEasing)
+                ),
+                exit = fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.9f),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
                 EmptyPluginsContent(
-                    onImportClick = { viewModel.showImportDialog() },
-                    modifier = Modifier.align(Alignment.Center)
+                    onImportClick = { viewModel.showImportDialog() }
                 )
-            } else {
-                // 插件列表
+            }
+            
+            // 插件列表 - 带淡入动画
+            AnimatedVisibility(
+                visible = !state.isLoading && state.plugins.isNotEmpty(),
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(200))
+            ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
@@ -134,37 +190,17 @@ fun PluginManagementScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(
+                    itemsIndexed(
                         items = state.plugins,
-                        key = { it.id }
-                    ) { plugin ->
-                        PluginCard(
+                        key = { _, plugin -> plugin.id }
+                    ) { index, plugin ->
+                        // 每个列表项的交错进入动画
+                        AnimatedPluginCard(
                             plugin = plugin,
+                            index = index,
                             onToggleEnabled = { viewModel.togglePluginEnabled(plugin.id) },
                             onDelete = { pluginToDelete = plugin }
                         )
-                    }
-                }
-            }
-            
-            // 错误提示
-            AnimatedVisibility(
-                visible = state.error != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-            ) {
-                state.error?.let { error ->
-                    Snackbar(
-                        action = {
-                            TextButton(onClick = { viewModel.clearError() }) {
-                                Text(stringResource(Res.string.action_close))
-                            }
-                        }
-                    ) {
-                        Text(formatPluginError(error))
                     }
                 }
             }
@@ -178,7 +214,11 @@ fun PluginManagementScreen(
             isImporting = state.isImporting,
             onTextChange = { viewModel.updateImportText(it) },
             onConfirm = { viewModel.importPluginFromText(state.importText) },
-            onDismiss = { viewModel.hideImportDialog() }
+            onDismiss = { viewModel.hideImportDialog() },
+            onSelectFile = {
+                viewModel.hideImportDialog()
+                showFilePicker = true
+            }
         )
     }
     
@@ -253,6 +293,56 @@ private fun EmptyPluginsContent(
 }
 
 /**
+ * 带动画的插件卡片包装器
+ */
+@Composable
+private fun AnimatedPluginCard(
+    plugin: PluginUiState,
+    index: Int,
+    onToggleEnabled: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // 交错动画延迟
+    val animationDelay = (index * 50).coerceAtMost(300)
+    
+    // 进入动画状态
+    var isVisible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(animationDelay.toLong())
+        isVisible = true
+    }
+    
+    // 动画值
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 300,
+            easing = FastOutSlowInEasing
+        )
+    )
+    
+    val animatedTranslationY by animateFloatAsState(
+        targetValue = if (isVisible) 0f else 30f,
+        animationSpec = tween(
+            durationMillis = 350,
+            easing = FastOutSlowInEasing
+        )
+    )
+    
+    PluginCard(
+        plugin = plugin,
+        onToggleEnabled = onToggleEnabled,
+        onDelete = onDelete,
+        modifier = modifier.graphicsLayer {
+            alpha = animatedAlpha
+            translationY = animatedTranslationY
+        }
+    )
+}
+
+/**
  * 插件卡片
  */
 @Composable
@@ -262,6 +352,25 @@ private fun PluginCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 图标颜色动画
+    val iconContainerColor by animateColorAsState(
+        targetValue = if (plugin.enabled) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        animationSpec = tween(300)
+    )
+    
+    val iconTint by animateColorAsState(
+        targetValue = if (plugin.enabled) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = tween(300)
+    )
+    
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -275,33 +384,31 @@ private fun PluginCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 插件图标
+                // 插件图标 - 带颜色动画
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (plugin.enabled) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
+                    color = iconContainerColor,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        if (plugin.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Outlined.Extension,
-                                contentDescription = null,
-                                tint = if (plugin.enabled) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(24.dp)
-                            )
+                        // 使用 Crossfade 在加载和图标之间切换
+                        Crossfade(
+                            targetState = plugin.isLoading,
+                            animationSpec = tween(200)
+                        ) { isLoading ->
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.Extension,
+                                    contentDescription = null,
+                                    tint = iconTint,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -341,72 +448,115 @@ private fun PluginCard(
                 )
             }
             
-            // 插件描述和功能
-            if (plugin.meta != null && plugin.enabled) {
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // 描述
-                plugin.meta.description?.let { desc ->
-                    Text(
-                        text = desc,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+            // 插件描述和功能 - 带展开/折叠动画
+            AnimatedVisibility(
+                visible = plugin.meta != null && plugin.enabled,
+                enter = expandVertically(
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(200, delayMillis = 100)),
+                exit = shrinkVertically(
+                    animationSpec = tween(200, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(150))
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                
-                // 功能标签
-                if (plugin.meta.capabilities.isNotEmpty()) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        plugin.meta.capabilities.take(4).forEach { capability ->
-                            CapabilityChip(capability = capability.name)
-                        }
-                        if (plugin.meta.capabilities.size > 4) {
-                            Text(
-                                text = "+${plugin.meta.capabilities.size - 4}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.align(Alignment.CenterVertically)
-                            )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // 描述
+                    plugin.meta?.description?.let { desc ->
+                        Text(
+                            text = desc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
+                    // 功能标签 - 带交错动画
+                    if (plugin.meta?.capabilities?.isNotEmpty() == true) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            plugin.meta.capabilities.take(4).forEachIndexed { capIndex, capability ->
+                                AnimatedCapabilityChip(
+                                    capability = capability.name,
+                                    delayMillis = capIndex * 50
+                                )
+                            }
+                            if (plugin.meta.capabilities.size > 4) {
+                                Text(
+                                    text = "+${plugin.meta.capabilities.size - 4}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                            }
                         }
                     }
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // 操作按钮
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(
-                        onClick = onDelete,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // 操作按钮
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(Res.string.action_delete))
+                        TextButton(
+                            onClick = onDelete,
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(stringResource(Res.string.action_delete))
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * 带动画的功能标签
+ */
+@Composable
+private fun AnimatedCapabilityChip(
+    capability: String,
+    delayMillis: Int = 0,
+    modifier: Modifier = Modifier
+) {
+    var isVisible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(delayMillis.toLong())
+        isVisible = true
+    }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+    )
+    
+    CapabilityChip(
+        capability = capability,
+        modifier = modifier.scale(scale)
+    )
 }
 
 /**
@@ -449,7 +599,8 @@ private fun ImportPluginDialog(
     isImporting: Boolean,
     onTextChange: (String) -> Unit,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onSelectFile: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = { if (!isImporting) onDismiss() },
@@ -470,6 +621,37 @@ private fun ImportPluginDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // 从文件选择按钮
+                OutlinedButton(
+                    onClick = onSelectFile,
+                    enabled = !isImporting,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FolderOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(Res.string.plugin_import_from_file))
+                }
+                
+                // 分隔线
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = stringResource(Res.string.plugin_import_or),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+                
                 Text(
                     text = stringResource(Res.string.plugin_import_hint),
                     style = MaterialTheme.typography.bodyMedium,
@@ -481,7 +663,7 @@ private fun ImportPluginDialog(
                     onValueChange = onTextChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
+                        .height(160.dp),
                     enabled = !isImporting,
                     placeholder = { 
                         Text(

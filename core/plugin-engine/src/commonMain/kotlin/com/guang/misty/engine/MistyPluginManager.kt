@@ -95,7 +95,7 @@ class MistyPluginManager(
      */
     suspend fun search(pluginId: String, keyword: String, page: Int): List<MistySong> {
         try {
-            // 使用同步 IIFE 调用插件函数（插件可以返回 Promise 或普通值）
+            // 使用同步 IIFE 调用插件函数（插件应使用同步函数）
             val script = """
                 (function() {
                     if (!MistyPlugins || !MistyPlugins['$pluginId']) {
@@ -371,6 +371,51 @@ class MistyPluginManager(
             result == "true"
         } catch (e: Exception) {
             false
+        }
+    }
+
+    /**
+     * 卸载指定插件
+     * @param pluginId 插件 ID
+     */
+    suspend fun unloadPlugin(pluginId: String) {
+        try {
+            val script = """
+                (function() {
+                    if (MistyPlugins && MistyPlugins['$pluginId']) {
+                        delete MistyPlugins['$pluginId'];
+                    }
+                    return undefined;
+                })();
+            """.trimIndent()
+
+            jsEngine.executeScript(script)
+        } catch (e: Exception) {
+            jsEngine.log("ERROR", "Failed to unload plugin $pluginId: ${e.message}")
+        }
+    }
+
+    /**
+     * 清除所有已加载的插件
+     */
+    suspend fun clearAllPlugins() {
+        try {
+            val script = """
+                (function() {
+                    if (typeof MistyPlugins !== 'undefined') {
+                        for (var key in MistyPlugins) {
+                            if (MistyPlugins.hasOwnProperty(key)) {
+                                delete MistyPlugins[key];
+                            }
+                        }
+                    }
+                    return undefined;
+                })();
+            """.trimIndent()
+
+            jsEngine.executeScript(script)
+        } catch (e: Exception) {
+            jsEngine.log("ERROR", "Failed to clear all plugins: ${e.message}")
         }
     }
 }

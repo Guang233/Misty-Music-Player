@@ -141,8 +141,8 @@ private fun MistyMainContent() {
             }
             MainDestination.Search -> {
                 SearchScreen(
-                    onSearch = { query ->
-                        // TODO: 执行搜索
+                    onNavigateToResult = { query ->
+                        // 搜索结果已在 SearchScreen 内部显示
                     }
                 )
             }

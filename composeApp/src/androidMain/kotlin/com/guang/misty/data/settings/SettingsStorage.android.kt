@@ -23,6 +23,7 @@ private val json = Json {
  * 需要在 Application 或 Activity 中初始化
  */
 object AndroidContextHolder {
+    @Volatile  // 确保多线程可见性
     private var _context: Context? = null
     
     val context: Context
@@ -208,6 +209,10 @@ class AndroidPluginStorage : PluginStorage {
     }
 }
 
-actual fun createSettingsStorage(): SettingsStorage = AndroidSettingsStorage()
+// 单例实例
+private val settingsStorageInstance by lazy { AndroidSettingsStorage() }
+private val pluginStorageInstance by lazy { AndroidPluginStorage() }
 
-actual fun createPluginStorage(): PluginStorage = AndroidPluginStorage()
+actual fun createSettingsStorage(): SettingsStorage = settingsStorageInstance
+
+actual fun createPluginStorage(): PluginStorage = pluginStorageInstance

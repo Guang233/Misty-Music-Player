@@ -11,6 +11,7 @@ import com.guang.misty.engine.MistyPluginManager
 import com.guang.misty.engine.bridge.MistyBridge
 import com.guang.misty.model.MistyPluginMeta
 import com.guang.misty.network.MistyHttpClient
+import com.guang.misty.service.PluginService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -310,6 +311,9 @@ class PluginManagerViewModel : ViewModel() {
                 importText = ""
             )
         }
+        
+        // 通知 PluginService 重新加载插件
+        PluginService.reloadPlugins()
     }
     
     /**
@@ -334,6 +338,9 @@ class PluginManagerViewModel : ViewModel() {
             if (newEnabled) {
                 loadPluginMeta(pluginId, currentState.fileName)
             }
+            
+            // 通知 PluginService 重新加载插件
+            PluginService.reloadPlugins()
         }
     }
     
@@ -357,6 +364,9 @@ class PluginManagerViewModel : ViewModel() {
                 _state.update { state ->
                     state.copy(plugins = state.plugins.filter { it.id != pluginId })
                 }
+                
+                // 通知 PluginService 重新加载插件
+                PluginService.reloadPlugins()
             } catch (e: Exception) {
                 _state.update { it.copy(error = PluginError.DeleteFailed(e.message ?: "Unknown error")) }
             }

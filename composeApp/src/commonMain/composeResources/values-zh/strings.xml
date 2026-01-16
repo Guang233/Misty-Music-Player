@@ -26,6 +26,14 @@
     <string name="search_tab_albums">专辑</string>
     <string name="search_tab_artists">歌手</string>
     <string name="search_tab_playlists">歌单</string>
+    <string name="search_no_plugin_hint">暂无可用的搜索插件，请先安装插件</string>
+    <string name="search_error">搜索失败</string>
+    <string name="search_empty">未找到结果</string>
+    <string name="search_empty_hint">尝试更换关键词或搜索源</string>
+    <string name="search_no_more">没有更多了</string>
+    <string name="search_initial_title">发现你的音乐</string>
+    <string name="search_initial_hint">搜索歌曲、歌手、专辑等</string>
+    <string name="search_start">开始搜索</string>
     
     <!-- Library Screen -->
     <string name="library_title">媒体库</string>
@@ -98,18 +106,20 @@
     <string name="plugin_empty_hint">导入社区插件以开始搜索和播放音乐</string>
     <string name="plugin_import">导入插件</string>
     <string name="plugin_import_title">导入插件</string>
+    <string name="plugin_import_from_file">从文件选择</string>
+    <string name="plugin_import_or">或者</string>
     <string name="plugin_import_hint">粘贴插件 JavaScript 代码：</string>
     <string name="plugin_import_placeholder">MistyPlugins[\'example\'] = { ... }</string>
     <string name="plugin_import_warning">请确保插件来源可信</string>
     <string name="plugin_delete_title">删除插件</string>
-    <string name="plugin_delete_confirm">确定要删除插件「%s」吗？此操作无法撤销。</string>
+    <string name="plugin_delete_confirm">确定要删除插件「%1$s」吗？此操作无法撤销。</string>
     <string name="plugin_file_not_found">插件文件不存在</string>
-    <string name="plugin_load_failed">加载失败：%s</string>
+    <string name="plugin_load_failed">加载失败：%1$s</string>
     <string name="plugin_save_failed">保存插件文件失败</string>
-    <string name="plugin_import_failed">导入失败：%s</string>
-    <string name="plugin_delete_failed">删除插件失败：%s</string>
+    <string name="plugin_import_failed">导入失败：%1$s</string>
+    <string name="plugin_delete_failed">删除插件失败：%1$s</string>
     <string name="plugin_id_not_found">无法识别插件 ID，请检查插件代码格式</string>
-    <string name="plugin_load_list_failed">加载插件列表失败：%s</string>
+    <string name="plugin_load_list_failed">加载插件列表失败：%1$s</string>
     <string name="plugin_capability_search">搜索</string>
     <string name="plugin_capability_playlist">歌单</string>
     <string name="plugin_capability_album">专辑</string>
@@ -117,6 +127,8 @@
     <string name="plugin_capability_audio">音频</string>
     <string name="action_close">关闭</string>
     <string name="action_back">返回</string>
+    <string name="action_search">搜索</string>
+    <string name="action_clear">清除</string>
     
     <!-- Errors -->
     <string name="error_network">网络错误</string>

@@ -10,11 +10,12 @@ import com.guang.misty.data.settings.AndroidContextHolder
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 初始化上下文
+        super.onCreate(savedInstanceState)
+        
+        // 初始化上下文（必须在 super.onCreate() 之后）
         AndroidContextHolder.init(this)
         
         enableEdgeToEdge()
-        super.onCreate(savedInstanceState)
 
         setContent {
             App()

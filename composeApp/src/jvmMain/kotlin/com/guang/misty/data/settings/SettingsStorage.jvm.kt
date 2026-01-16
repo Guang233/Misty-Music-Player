@@ -191,6 +191,10 @@ class JvmPluginStorage : PluginStorage {
     }
 }
 
-actual fun createSettingsStorage(): SettingsStorage = JvmSettingsStorage()
+// 单例实例
+private val settingsStorageInstance by lazy { JvmSettingsStorage() }
+private val pluginStorageInstance by lazy { JvmPluginStorage() }
 
-actual fun createPluginStorage(): PluginStorage = JvmPluginStorage()
+actual fun createSettingsStorage(): SettingsStorage = settingsStorageInstance
+
+actual fun createPluginStorage(): PluginStorage = pluginStorageInstance

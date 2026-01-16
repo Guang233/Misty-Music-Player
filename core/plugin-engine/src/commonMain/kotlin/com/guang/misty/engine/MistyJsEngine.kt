@@ -135,13 +135,13 @@ class MistyJsEngine(
 
     /**
      * 执行异步 JavaScript 函数
-     * @param script JavaScript 代码（应返回 Promise 或 async IIFE）
+     * 注意：QuickJS-kt 的 evaluate 不会自动等待 Promise，
+     * 因此插件应使用同步函数。此方法保留用于将来可能的 async 支持。
+     * @param script JavaScript 代码
      * @return 执行结果（JSON 字符串）
      */
     suspend fun executeAsyncScript(script: String): String = withContext(Dispatchers.Default) {
         try {
-            // QuickJs 在执行时会自动处理 Promise
-            // 返回 Any? 然后转换为 String
             val result: Any? = quickJs.evaluate<Any?>(script)
             result?.toString() ?: "null"
         } catch (e: Exception) {

@@ -26,6 +26,14 @@
     <string name="search_tab_albums">Albums</string>
     <string name="search_tab_artists">Artists</string>
     <string name="search_tab_playlists">Playlists</string>
+    <string name="search_no_plugin_hint">No search plugins available. Please install plugins first.</string>
+    <string name="search_error">Search failed</string>
+    <string name="search_empty">No results found</string>
+    <string name="search_empty_hint">Try different keywords or sources</string>
+    <string name="search_no_more">No more results</string>
+    <string name="search_initial_title">Find your music</string>
+    <string name="search_initial_hint">Search for songs, artists, albums and more</string>
+    <string name="search_start">Start Search</string>
     
     <!-- Library Screen -->
     <string name="library_title">Library</string>
@@ -98,18 +106,20 @@
     <string name="plugin_empty_hint">Import community plugins to start searching and playing music</string>
     <string name="plugin_import">Import Plugin</string>
     <string name="plugin_import_title">Import Plugin</string>
+    <string name="plugin_import_from_file">Select from file</string>
+    <string name="plugin_import_or">or</string>
     <string name="plugin_import_hint">Paste plugin JavaScript code:</string>
     <string name="plugin_import_placeholder">MistyPlugins[\'example\'] = { ... }</string>
     <string name="plugin_import_warning">Please ensure the plugin source is trustworthy</string>
     <string name="plugin_delete_title">Delete Plugin</string>
-    <string name="plugin_delete_confirm">Are you sure you want to delete plugin \"%s\"? This action cannot be undone.</string>
+    <string name="plugin_delete_confirm">Are you sure you want to delete plugin \"%1$s\"? This action cannot be undone.</string>
     <string name="plugin_file_not_found">Plugin file not found</string>
-    <string name="plugin_load_failed">Load failed: %s</string>
+    <string name="plugin_load_failed">Load failed: %1$s</string>
     <string name="plugin_save_failed">Failed to save plugin file</string>
-    <string name="plugin_import_failed">Import failed: %s</string>
-    <string name="plugin_delete_failed">Failed to delete plugin: %s</string>
+    <string name="plugin_import_failed">Import failed: %1$s</string>
+    <string name="plugin_delete_failed">Failed to delete plugin: %1$s</string>
     <string name="plugin_id_not_found">Cannot identify plugin ID, please check the code format</string>
-    <string name="plugin_load_list_failed">Failed to load plugin list: %s</string>
+    <string name="plugin_load_list_failed">Failed to load plugin list: %1$s</string>
     <string name="plugin_capability_search">Search</string>
     <string name="plugin_capability_playlist">Playlist</string>
     <string name="plugin_capability_album">Album</string>
@@ -117,6 +127,8 @@
     <string name="plugin_capability_audio">Audio</string>
     <string name="action_close">Close</string>
     <string name="action_back">Back</string>
+    <string name="action_search">Search</string>
+    <string name="action_clear">Clear</string>
     
     <!-- Errors -->
     <string name="error_network">Network error</string>
