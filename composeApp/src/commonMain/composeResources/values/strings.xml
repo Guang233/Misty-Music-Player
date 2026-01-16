@@ -21,6 +21,7 @@
     <!-- Search Screen -->
     <string name="search_hint">Search songs, artists, albums...</string>
     <string name="search_history">Search History</string>
+    <string name="search_suggestions">Suggestions</string>
     <string name="search_clear_history">Clear</string>
     <string name="search_tab_songs">Songs</string>
     <string name="search_tab_albums">Albums</string>

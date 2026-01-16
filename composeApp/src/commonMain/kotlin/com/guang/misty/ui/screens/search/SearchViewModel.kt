@@ -2,10 +2,14 @@ package com.guang.misty.ui.screens.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.guang.misty.data.settings.MistySettings
+import com.guang.misty.data.settings.createSettingsStorage
 import com.guang.misty.model.MistyPluginCapability
 import com.guang.misty.model.MistySong
 import com.guang.misty.service.LoadedPlugin
 import com.guang.misty.service.PluginService
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +35,9 @@ data class SearchState(
     val searchError: String? = null,
     val currentPage: Int = 1,
     val hasMoreResults: Boolean = true,
+    // 搜索联想词
+    val suggestions: List<String> = emptyList(),
+    val isLoadingSuggestions: Boolean = false,
 )
 
 /**
@@ -38,8 +45,13 @@ data class SearchState(
  */
 class SearchViewModel : ViewModel() {
     
+    private val settingsStorage = createSettingsStorage()
     private val _state = MutableStateFlow(SearchState())
     val state: StateFlow<SearchState> = _state.asStateFlow()
+    
+    // 联想词请求的防抖 Job
+    private var suggestionsJob: Job? = null
+    private val suggestDebounceMs = 300L
     
     init {
         // 监听插件服务状态
@@ -54,6 +66,13 @@ class SearchViewModel : ViewModel() {
                     // 默认选中第一个源
                     selectedSourceId = it.selectedSourceId ?: searchablePlugins.firstOrNull()?.id
                 ) }
+            }
+        }
+        
+        // 加载搜索历史
+        viewModelScope.launch {
+            settingsStorage.settingsFlow.collect { settings ->
+                _state.update { it.copy(searchHistory = settings.searchHistory) }
             }
         }
         
@@ -146,21 +165,34 @@ class SearchViewModel : ViewModel() {
     /**
      * 添加到搜索历史
      */
-    private fun addToHistory(keyword: String) {
-        _state.update { state ->
-            val newHistory = (listOf(keyword) + state.searchHistory.filter { it != keyword })
-                .take(10)
-            state.copy(searchHistory = newHistory)
+    private suspend fun addToHistory(keyword: String) {
+        settingsStorage.updateSettings { settings ->
+            val newHistory = (listOf(keyword) + settings.searchHistory.filter { it != keyword })
+                .take(MistySettings.MAX_SEARCH_HISTORY)
+            settings.copy(searchHistory = newHistory)
         }
-        // TODO: 持久化搜索历史
     }
     
     /**
-     * 清除搜索历史
+     * 删除单条搜索历史
+     */
+    fun deleteHistoryItem(keyword: String) {
+        viewModelScope.launch {
+            settingsStorage.updateSettings { settings ->
+                settings.copy(searchHistory = settings.searchHistory.filter { it != keyword })
+            }
+        }
+    }
+    
+    /**
+     * 清除所有搜索历史
      */
     fun clearHistory() {
-        _state.update { it.copy(searchHistory = emptyList()) }
-        // TODO: 持久化
+        viewModelScope.launch {
+            settingsStorage.updateSettings { settings ->
+                settings.copy(searchHistory = emptyList())
+            }
+        }
     }
     
     /**
@@ -181,5 +213,56 @@ class SearchViewModel : ViewModel() {
      */
     fun clearError() {
         _state.update { it.copy(searchError = null) }
+    }
+    
+    /**
+     * 获取搜索联想词（带防抖）
+     */
+    fun fetchSuggestions(keyword: String) {
+        // 取消之前的请求
+        suggestionsJob?.cancel()
+        
+        // 如果关键词为空，清空联想词
+        if (keyword.isBlank()) {
+            _state.update { it.copy(suggestions = emptyList(), isLoadingSuggestions = false) }
+            return
+        }
+        
+        suggestionsJob = viewModelScope.launch {
+            // 防抖延迟
+            delay(suggestDebounceMs)
+            
+            val pluginId = _state.value.selectedSourceId ?: return@launch
+            
+            // 检查当前选中的插件是否支持联想词
+            val plugin = _state.value.availableSources.find { it.id == pluginId }
+            if (plugin?.meta?.capabilities?.contains(MistyPluginCapability.SEARCH_SUGGEST) != true) {
+                _state.update { it.copy(suggestions = emptyList(), isLoadingSuggestions = false) }
+                return@launch
+            }
+            
+            _state.update { it.copy(isLoadingSuggestions = true) }
+            
+            try {
+                val suggestions = PluginService.getSearchSuggestions(pluginId, keyword)
+                _state.update { it.copy(
+                    suggestions = suggestions,
+                    isLoadingSuggestions = false
+                ) }
+            } catch (e: Exception) {
+                _state.update { it.copy(
+                    suggestions = emptyList(),
+                    isLoadingSuggestions = false
+                ) }
+            }
+        }
+    }
+    
+    /**
+     * 清除联想词
+     */
+    fun clearSuggestions() {
+        suggestionsJob?.cancel()
+        _state.update { it.copy(suggestions = emptyList(), isLoadingSuggestions = false) }
     }
 }

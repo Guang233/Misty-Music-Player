@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class MistyPluginCapability {
     SEARCH,           // 搜索歌曲
+    SEARCH_SUGGEST,   // 搜索联想词
     PLAYLIST,         // 获取歌单
     ALBUM,            // 获取专辑
     LYRICS,           // 获取歌词

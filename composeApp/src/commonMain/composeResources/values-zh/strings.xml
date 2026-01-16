@@ -21,6 +21,7 @@
     <!-- Search Screen -->
     <string name="search_hint">搜索歌曲、歌手、专辑...</string>
     <string name="search_history">搜索历史</string>
+    <string name="search_suggestions">搜索建议</string>
     <string name="search_clear_history">清空</string>
     <string name="search_tab_songs">单曲</string>
     <string name="search_tab_albums">专辑</string>

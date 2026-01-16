@@ -26,9 +26,13 @@ data class MistySettings(
     // 插件设置
     val enabledPlugins: List<String> = emptyList(),
     val pluginOrder: List<String> = emptyList(),
+    
+    // 搜索历史
+    val searchHistory: List<String> = emptyList(),
 ) {
     companion object {
         val Default = MistySettings()
+        const val MAX_SEARCH_HISTORY = 20
     }
 }
 

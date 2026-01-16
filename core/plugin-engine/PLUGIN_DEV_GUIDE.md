@@ -24,6 +24,7 @@
   - [音频资源 `MistyAudioResourceResult`](#音频资源-mistyaudioresourceresult)
 - [插件需要实现的接口](#插件需要实现的接口)
   - [`search(keyword, page)` 搜索歌曲](#searchkeyword-page-搜索歌曲)
+  - [`getSearchSuggestions(keyword)` 获取搜索联想词](#getsearchsuggestionskeyword-获取搜索联想词)
   - [`getPlaylist(playlistId)` 获取歌单](#getplaylistplaylistid-获取歌单)
   - [`getAlbum(albumId)` 获取专辑](#getalbumalbumid-获取专辑)
   - [`getLyrics(songId)` 获取歌词](#getlyricssongid-获取歌词)
@@ -134,6 +135,7 @@ MistyPlugins[PLUGIN_ID] = {
     // 声明该插件实现了哪些能力（全部大写）
     capabilities: [
       "SEARCH",
+      "SEARCH_SUGGEST",
       "PLAYLIST",
       "ALBUM",
       "LYRICS",
@@ -430,6 +432,7 @@ const plainEcb = misty.crypto.aesEcbDecryptFromBase64(
 | 枚举值 | 说明 |
 |--------|------|
 | `SEARCH` | 搜索歌曲 |
+| `SEARCH_SUGGEST` | 搜索联想词 |
 | `PLAYLIST` | 获取歌单 |
 | `ALBUM` | 获取专辑 |
 | `LYRICS` | 获取歌词 |
@@ -578,6 +581,42 @@ function search(keyword, page) => MistySong[] | { songs: MistySong[], ... }
 
 ---
 
+### `getSearchSuggestions(keyword)` 获取搜索联想词
+
+**JS 签名：**
+
+```javascript
+function getSearchSuggestions(keyword) => string[]
+```
+
+**参数：**
+- `keyword`：当前输入的关键词
+
+**返回：** `string[]` 联想词数组
+
+**说明：** 该接口为可选接口。如果插件实现了此接口，需要在 `capabilities` 中声明 `"SEARCH_SUGGEST"`。
+
+**示例实现：**
+
+```javascript
+getSearchSuggestions: function(keyword) {
+  misty.log.info("[" + PLUGIN_ID + "] getSearchSuggestions: keyword=" + keyword);
+  try {
+    var resp = misty.http.get(
+      "https://api.example.com/search/suggest?q=" + encodeURIComponent(keyword)
+    );
+    var data = JSON.parse(resp);
+    // 假设 API 返回 { suggestions: ["建议1", "建议2", ...] }
+    return data.suggestions || [];
+  } catch (err) {
+    misty.log.error("[" + PLUGIN_ID + "] getSearchSuggestions failed: " + err.message);
+    return [];
+  }
+}
+```
+
+---
+
 ### `getPlaylist(playlistId)` 获取歌单
 
 **JS 签名：**
@@ -712,7 +751,7 @@ MistyPlugins[PLUGIN_ID] = {
     license: "MIT",
     sourceName: "Example Music",
     sourceHomepage: "https://music.example.com",
-    capabilities: ["SEARCH", "PLAYLIST", "ALBUM", "LYRICS", "AUDIO_RESOURCES"],
+    capabilities: ["SEARCH", "SEARCH_SUGGEST", "PLAYLIST", "ALBUM", "LYRICS", "AUDIO_RESOURCES"],
     supportRegions: ["CN"],
     disclaimer: "This plugin is provided by the community. Misty only loads community scripts and does not provide any music sources.",
   },
@@ -726,6 +765,20 @@ MistyPlugins[PLUGIN_ID] = {
     var data = JSON.parse(resp);
     // 假设 data.songs 就是符合 MistySong 结构的数组
     return data.songs || [];
+  },
+
+  // 可选：搜索联想词
+  getSearchSuggestions: function(keyword) {
+    misty.log.info("[" + PLUGIN_ID + "] getSearchSuggestions: keyword=" + keyword);
+    try {
+      var resp = misty.http.get(
+        "https://api.example.com/search/suggest?q=" + encodeURIComponent(keyword)
+      );
+      var data = JSON.parse(resp);
+      return data.suggestions || [];
+    } catch (err) {
+      return [];
+    }
   },
 
   // 获取歌单

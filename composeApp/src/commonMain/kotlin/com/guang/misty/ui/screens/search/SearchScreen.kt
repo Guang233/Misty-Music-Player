@@ -81,11 +81,11 @@ fun SearchScreen(
     
     Box(modifier = modifier.fillMaxSize()) {
         // 主内容：结果浏览模式
-        Scaffold(
-            topBar = {
+    Scaffold(
+        topBar = {
                 // 紧凑的顶栏，包含搜索入口
                 TopAppBar(
-                    title = {
+                title = { 
                         // 可点击的搜索入口
                         CompactSearchBar(
                             currentKeyword = currentKeyword,
@@ -96,23 +96,23 @@ fun SearchScreen(
                                     isSearchMode = true
                                 }
                             }
-                        )
-                    },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                     )
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
-            },
+            )
+        },
             contentWindowInsets = WindowInsets(0),
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
                 // 源选择器（可折叠）
                 AnimatedVisibility(
                     visible = hasPlugins,
@@ -180,8 +180,8 @@ fun SearchScreen(
                                 SearchEmptyState(
                                     modifier = Modifier.fillMaxWidth().padding(32.dp)
                                 )
-                            }
-                        }
+                    }
+                }
                         
                         // 没有更多
                         if (!state.hasMoreResults && state.searchResults.isNotEmpty()) {
@@ -220,9 +220,9 @@ fun SearchScreen(
                         // 搜索历史
                         if (state.searchHistory.isNotEmpty()) {
                             item(key = "history") {
-                                SearchHistorySection(
+                        SearchHistorySection(
                                     history = state.searchHistory,
-                                    onHistoryClick = { 
+                            onHistoryClick = { 
                                         viewModel.search(it)
                                     },
                                     onClearHistory = { viewModel.clearHistory() }
@@ -248,21 +248,39 @@ fun SearchScreen(
         ) {
             SearchOverlay(
                 initialQuery = searchQuery,
-                onQueryChange = { searchQuery = it },
+                onQueryChange = { query ->
+                    searchQuery = query
+                    viewModel.fetchSuggestions(query)
+                },
                 onSearch = { query ->
                     if (query.isNotBlank()) {
                         viewModel.search(query)
+                        viewModel.clearSuggestions()
                         isSearchMode = false
                     }
                 },
-                onDismiss = { isSearchMode = false },
+                onDismiss = { 
+                    viewModel.clearSuggestions()
+                    isSearchMode = false 
+                },
                 searchHistory = state.searchHistory,
                 onHistoryClick = { keyword ->
                     viewModel.search(keyword)
+                    viewModel.clearSuggestions()
+                    isSearchMode = false
+                },
+                onHistoryDelete = { keyword ->
+                    viewModel.deleteHistoryItem(keyword)
+                },
+                suggestions = state.suggestions,
+                isLoadingSuggestions = state.isLoadingSuggestions,
+                onSuggestionClick = { suggestion ->
+                    viewModel.search(suggestion)
+                    viewModel.clearSuggestions()
                     isSearchMode = false
                 }
             )
-        }
+                }
     }
 }
 
@@ -336,6 +354,10 @@ private fun SearchOverlay(
     onDismiss: () -> Unit,
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
+    suggestions: List<String>,
+    isLoadingSuggestions: Boolean,
+    onSuggestionClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -418,7 +440,7 @@ private fun SearchOverlay(
                                         text = stringResource(Res.string.search_hint),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                    )
                                 }
                                 innerTextField()
                             }
@@ -463,13 +485,67 @@ private fun SearchOverlay(
             
             HorizontalDivider()
             
-            // 搜索历史
+            // 联想词或搜索历史
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                if (searchHistory.isNotEmpty()) {
-                    item {
+                // 联想词加载指示器
+                if (isLoadingSuggestions && textFieldValue.text.isNotBlank()) {
+                    item(key = "suggestions_loading") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                }
+                
+                // 联想词列表（仅当有输入且有联想词时显示）
+                if (suggestions.isNotEmpty() && textFieldValue.text.isNotBlank()) {
+                    item(key = "suggestions_header") {
+                        Text(
+                            text = stringResource(Res.string.search_suggestions),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    
+                    items(
+                        items = suggestions,
+                        key = { "suggestion_$it" }
+                    ) { suggestion ->
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = suggestion,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            modifier = Modifier.clickable { onSuggestionClick(suggestion) }
+                        )
+                    }
+                }
+                
+                // 搜索历史（当没有输入或没有联想词时显示）
+                if (searchHistory.isNotEmpty() && (textFieldValue.text.isBlank() || suggestions.isEmpty())) {
+                    item(key = "history_header") {
                         Text(
                             text = stringResource(Res.string.search_history),
                             style = MaterialTheme.typography.titleSmall,
@@ -479,7 +555,10 @@ private fun SearchOverlay(
                         )
                     }
                     
-                    items(searchHistory) { keyword ->
+                    items(
+                        items = searchHistory,
+                        key = { "history_$it" }
+                    ) { keyword ->
                         ListItem(
                             headlineContent = {
                                 Text(
@@ -494,6 +573,19 @@ private fun SearchOverlay(
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            },
+                            trailingContent = {
+                                IconButton(
+                                    onClick = { onHistoryDelete(keyword) },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(Res.string.action_delete),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             },
                             modifier = Modifier.clickable { onHistoryClick(keyword) }
                         )
@@ -563,7 +655,7 @@ private fun NoPluginHint(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    ) {
             Icon(
                 imageVector = Icons.Outlined.Extension,
                 contentDescription = null,

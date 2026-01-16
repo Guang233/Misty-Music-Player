@@ -53,6 +53,11 @@ data class PluginManagementState(
     val error: PluginError? = null,
     val importDialogVisible: Boolean = false,
     val importText: String = "",
+    // 插件详情/编辑状态
+    val editingPluginId: String? = null,
+    val editingPluginCode: String = "",
+    val isLoadingCode: Boolean = false,
+    val isSavingCode: Boolean = false,
 )
 
 /**
@@ -378,6 +383,100 @@ class PluginManagerViewModel : ViewModel() {
      */
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+    
+    /**
+     * 打开插件编辑对话框
+     */
+    fun openPluginEditor(pluginId: String) {
+        val plugin = _state.value.plugins.find { it.id == pluginId } ?: return
+        
+        viewModelScope.launch {
+            _state.update { it.copy(
+                editingPluginId = pluginId,
+                editingPluginCode = "",
+                isLoadingCode = true
+            ) }
+            
+            try {
+                val code = pluginStorage.readPluginFile(plugin.fileName)
+                _state.update { it.copy(
+                    editingPluginCode = code ?: "",
+                    isLoadingCode = false
+                ) }
+            } catch (e: Exception) {
+                _state.update { it.copy(
+                    isLoadingCode = false,
+                    error = PluginError.LoadFailed(e.message ?: "Unknown error")
+                ) }
+            }
+        }
+    }
+    
+    /**
+     * 关闭插件编辑对话框
+     */
+    fun closePluginEditor() {
+        _state.update { it.copy(
+            editingPluginId = null,
+            editingPluginCode = "",
+            isLoadingCode = false,
+            isSavingCode = false
+        ) }
+    }
+    
+    /**
+     * 更新编辑中的代码
+     */
+    fun updateEditingCode(code: String) {
+        _state.update { it.copy(editingPluginCode = code) }
+    }
+    
+    /**
+     * 保存编辑的插件代码
+     */
+    fun savePluginCode() {
+        val pluginId = _state.value.editingPluginId ?: return
+        val code = _state.value.editingPluginCode
+        val plugin = _state.value.plugins.find { it.id == pluginId } ?: return
+        
+        viewModelScope.launch {
+            _state.update { it.copy(isSavingCode = true) }
+            
+            try {
+                // 保存文件
+                val saved = pluginStorage.savePluginFile(plugin.fileName, code)
+                if (!saved) {
+                    _state.update { it.copy(
+                        isSavingCode = false,
+                        error = PluginError.SaveFailed
+                    ) }
+                    return@launch
+                }
+                
+                // 重新加载插件以获取新的元信息
+                ensureEngineInitialized()
+                pluginManager?.loadPlugin(pluginId, code)
+                val meta = pluginManager?.getPluginMeta(pluginId)
+                
+                // 更新 UI 状态
+                updatePluginState(pluginId) { it.copy(meta = meta) }
+                
+                _state.update { it.copy(
+                    isSavingCode = false,
+                    editingPluginId = null,
+                    editingPluginCode = ""
+                ) }
+                
+                // 通知 PluginService 重新加载插件
+                PluginService.reloadPlugins()
+            } catch (e: Exception) {
+                _state.update { it.copy(
+                    isSavingCode = false,
+                    error = PluginError.SaveFailed
+                ) }
+            }
+        }
     }
     
     /**

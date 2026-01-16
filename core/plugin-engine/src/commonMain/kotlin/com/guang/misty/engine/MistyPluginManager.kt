@@ -139,6 +139,40 @@ class MistyPluginManager(
     }
 
     /**
+     * 获取搜索联想词
+     * 
+     * 插件侧约定：实现 plugin.getSearchSuggestions(keyword)，返回字符串数组：
+     * - 返回格式：["联想词1", "联想词2", ...]
+     * 
+     * @param pluginId 插件 ID
+     * @param keyword 当前输入的关键词
+     * @return 联想词列表
+     */
+    suspend fun getSearchSuggestions(pluginId: String, keyword: String): List<String> {
+        try {
+            val script = """
+                (function() {
+                    if (!MistyPlugins || !MistyPlugins['$pluginId']) {
+                        throw new Error('Plugin not found: $pluginId');
+                    }
+                    const plugin = MistyPlugins['$pluginId'];
+                    if (typeof plugin.getSearchSuggestions !== 'function') {
+                        return JSON.stringify([]);
+                    }
+                    const result = plugin.getSearchSuggestions('$keyword');
+                    return JSON.stringify(result || []);
+                })();
+            """.trimIndent()
+
+            val resultJson = jsEngine.executeScript(script)
+            return json.decodeFromString(resultJson)
+        } catch (e: Exception) {
+            jsEngine.log("WARN", "getSearchSuggestions failed: ${e.message}")
+            return emptyList()
+        }
+    }
+
+    /**
      * 获取指定音质的音频资源。
      *
      * 插件侧约定：实现 plugin.getAudioResource(songId, quality)，返回 MistyAudioResourceResult：

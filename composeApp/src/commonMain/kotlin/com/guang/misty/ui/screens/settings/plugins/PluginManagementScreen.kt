@@ -68,12 +68,13 @@ fun PluginManagementScreen(
     var showFilePicker by remember { mutableStateOf(false) }
     
     // 判断是否有 dialog 打开
-    val hasDialogOpen = state.importDialogVisible || pluginToDelete != null
+    val hasDialogOpen = state.importDialogVisible || pluginToDelete != null || state.editingPluginId != null
     
     // 处理返回键：优先关闭 dialog，否则返回上一页
     BackHandler(enabled = true) {
         when {
             pluginToDelete != null -> pluginToDelete = null
+            state.editingPluginId != null && !state.isSavingCode -> viewModel.closePluginEditor()
             state.importDialogVisible && !state.isImporting -> viewModel.hideImportDialog()
             !hasDialogOpen -> onNavigateBack()
         }
@@ -198,6 +199,7 @@ fun PluginManagementScreen(
                         AnimatedPluginCard(
                             plugin = plugin,
                             index = index,
+                            onClick = { viewModel.openPluginEditor(plugin.id) },
                             onToggleEnabled = { viewModel.togglePluginEnabled(plugin.id) },
                             onDelete = { pluginToDelete = plugin }
                         )
@@ -232,6 +234,22 @@ fun PluginManagementScreen(
             },
             onDismiss = { pluginToDelete = null }
         )
+    }
+    
+    // 插件编辑对话框
+    state.editingPluginId?.let { pluginId ->
+        val plugin = state.plugins.find { it.id == pluginId }
+        if (plugin != null) {
+            EditPluginDialog(
+                plugin = plugin,
+                code = state.editingPluginCode,
+                isLoading = state.isLoadingCode,
+                isSaving = state.isSavingCode,
+                onCodeChange = { viewModel.updateEditingCode(it) },
+                onSave = { viewModel.savePluginCode() },
+                onDismiss = { viewModel.closePluginEditor() }
+            )
+        }
     }
 }
 
@@ -299,6 +317,7 @@ private fun EmptyPluginsContent(
 private fun AnimatedPluginCard(
     plugin: PluginUiState,
     index: Int,
+    onClick: () -> Unit,
     onToggleEnabled: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -333,6 +352,7 @@ private fun AnimatedPluginCard(
     
     PluginCard(
         plugin = plugin,
+        onClick = onClick,
         onToggleEnabled = onToggleEnabled,
         onDelete = onDelete,
         modifier = modifier.graphicsLayer {
@@ -348,6 +368,7 @@ private fun AnimatedPluginCard(
 @Composable
 private fun PluginCard(
     plugin: PluginUiState,
+    onClick: () -> Unit,
     onToggleEnabled: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -372,6 +393,7 @@ private fun PluginCard(
     )
     
     Surface(
+        onClick = onClick,
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier.fillMaxWidth()
@@ -765,6 +787,111 @@ private fun DeletePluginDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.action_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * 插件编辑对话框
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditPluginDialog(
+    plugin: PluginUiState,
+    code: String,
+    isLoading: Boolean,
+    isSaving: Boolean,
+    onCodeChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val pluginName = plugin.meta?.name ?: plugin.id
+    
+    // 全屏对话框
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.9f),
+        shape = RoundedCornerShape(28.dp),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = pluginName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (plugin.meta != null) {
+                        Text(
+                            text = "v${plugin.meta.version ?: "1.0.0"} · ${plugin.fileName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 300.dp, max = 500.dp)
+            ) {
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = code,
+                        onValueChange = onCodeChange,
+                        modifier = Modifier.fillMaxSize(),
+                        enabled = !isSaving,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        )
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = code.isNotBlank() && !isLoading && !isSaving
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(stringResource(Res.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSaving
+            ) {
                 Text(stringResource(Res.string.action_cancel))
             }
         }

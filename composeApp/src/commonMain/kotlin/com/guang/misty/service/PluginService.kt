@@ -239,11 +239,36 @@ object PluginService {
     }
     
     /**
+     * 获取搜索联想词
+     * @param pluginId 插件 ID
+     * @param keyword 当前输入的关键词
+     */
+    suspend fun getSearchSuggestions(pluginId: String, keyword: String): List<String> {
+        val manager = pluginManager ?: return emptyList()
+        
+        return try {
+            manager.getSearchSuggestions(pluginId, keyword)
+        } catch (e: Exception) {
+            println("Get search suggestions failed: ${e.message}")
+            emptyList()
+        }
+    }
+    
+    /**
      * 获取有搜索能力的插件列表
      */
     fun getSearchablePlugins(): List<LoadedPlugin> {
         return _state.value.loadedPlugins.filter { 
             it.meta.capabilities.contains(MistyPluginCapability.SEARCH) 
+        }
+    }
+    
+    /**
+     * 获取有搜索联想能力的插件列表
+     */
+    fun getSuggestablePlugins(): List<LoadedPlugin> {
+        return _state.value.loadedPlugins.filter { 
+            it.meta.capabilities.contains(MistyPluginCapability.SEARCH_SUGGEST) 
         }
     }
     
