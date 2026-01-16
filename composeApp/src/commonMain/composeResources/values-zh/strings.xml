@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">Misty</string>
+    
+    <!-- Navigation -->
+    <string name="nav_playing">播放</string>
+    <string name="nav_search">搜索</string>
+    <string name="nav_library">媒体库</string>
+    <string name="nav_settings">设置</string>
+    
+    <!-- Playing Screen -->
+    <string name="playing_title">正在播放</string>
+    <string name="playing_empty_title">播放队列为空</string>
+    <string name="playing_empty_hint">搜索音乐或浏览媒体库添加歌曲</string>
+    <string name="playing_go_search">去搜索</string>
+    <string name="playing_browse_library">浏览媒体库</string>
+    <string name="playing_shuffle">随机播放</string>
+    <string name="playing_clear">清空</string>
+    
+    <!-- Search Screen -->
+    <string name="search_hint">搜索歌曲、歌手、专辑...</string>
+    <string name="search_history">搜索历史</string>
+    <string name="search_clear_history">清空</string>
+    <string name="search_tab_songs">单曲</string>
+    <string name="search_tab_albums">专辑</string>
+    <string name="search_tab_artists">歌手</string>
+    <string name="search_tab_playlists">歌单</string>
+    
+    <!-- Library Screen -->
+    <string name="library_title">媒体库</string>
+    <string name="library_local_music">本地音乐</string>
+    <string name="library_downloads">已下载</string>
+    <string name="library_playlists">我的歌单</string>
+    <string name="library_favorites">我喜欢</string>
+    <string name="library_create_playlist">新建歌单</string>
+    <string name="library_tab_songs">歌曲</string>
+    <string name="library_tab_artists">歌手</string>
+    <string name="library_tab_albums">专辑</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings_title">设置</string>
+    <string name="settings_plugins">插件</string>
+    <string name="settings_plugin_management">插件管理</string>
+    <string name="settings_plugin_management_desc">管理已安装的插件</string>
+    <string name="settings_playback">播放</string>
+    <string name="settings_audio_quality">音质偏好</string>
+    <string name="settings_download">下载</string>
+    <string name="settings_download_path">下载路径</string>
+    <string name="settings_download_quality">下载音质</string>
+    <string name="settings_wifi_only">仅 WiFi 下载</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_color">主题色</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_about_app">关于 Misty</string>
+    
+    <!-- Theme Options -->
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    
+    <!-- Player Controls -->
+    <string name="player_no_song">未播放任何歌曲</string>
+    <string name="player_play">播放</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_previous">上一曲</string>
+    <string name="player_next">下一曲</string>
+    <string name="player_shuffle">随机</string>
+    <string name="player_repeat">循环</string>
+    <string name="player_repeat_one">单曲循环</string>
+    <string name="player_queue">播放队列</string>
+    
+    <!-- Common Actions -->
+    <string name="action_play_now">立即播放</string>
+    <string name="action_add_to_queue">添加到队列</string>
+    <string name="action_download">下载</string>
+    <string name="action_add_to_playlist">添加到歌单...</string>
+    <string name="action_view_artist">查看歌手</string>
+    <string name="action_view_album">查看专辑</string>
+    <string name="action_remove">移除</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_save">保存</string>
+    <string name="action_delete">删除</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_more">更多</string>
+    
+    <!-- Audio Quality -->
+    <string name="quality_standard">标准</string>
+    <string name="quality_high">高品质</string>
+    <string name="quality_lossless">无损</string>
+    <string name="quality_hires">Hi-Res</string>
+    
+    <!-- Plugin Management Screen -->
+    <string name="plugin_management_title">插件管理</string>
+    <string name="plugin_empty_title">暂无插件</string>
+    <string name="plugin_empty_hint">导入社区插件以开始搜索和播放音乐</string>
+    <string name="plugin_import">导入插件</string>
+    <string name="plugin_import_title">导入插件</string>
+    <string name="plugin_import_hint">粘贴插件 JavaScript 代码：</string>
+    <string name="plugin_import_placeholder">MistyPlugins[\'example\'] = { ... }</string>
+    <string name="plugin_import_warning">请确保插件来源可信</string>
+    <string name="plugin_delete_title">删除插件</string>
+    <string name="plugin_delete_confirm">确定要删除插件「%s」吗？此操作无法撤销。</string>
+    <string name="plugin_file_not_found">插件文件不存在</string>
+    <string name="plugin_load_failed">加载失败：%s</string>
+    <string name="plugin_save_failed">保存插件文件失败</string>
+    <string name="plugin_import_failed">导入失败：%s</string>
+    <string name="plugin_delete_failed">删除插件失败：%s</string>
+    <string name="plugin_id_not_found">无法识别插件 ID，请检查插件代码格式</string>
+    <string name="plugin_load_list_failed">加载插件列表失败：%s</string>
+    <string name="plugin_capability_search">搜索</string>
+    <string name="plugin_capability_playlist">歌单</string>
+    <string name="plugin_capability_album">专辑</string>
+    <string name="plugin_capability_lyrics">歌词</string>
+    <string name="plugin_capability_audio">音频</string>
+    <string name="action_close">关闭</string>
+    <string name="action_back">返回</string>
+    
+    <!-- Errors -->
+    <string name="error_network">网络错误</string>
+    <string name="error_load_failed">加载失败</string>
+    <string name="error_no_plugin">暂无可用插件</string>
+</resources>

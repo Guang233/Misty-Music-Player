@@ -38,6 +38,8 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.kotlinx.coroutinesAndroid)
+            // Compose Runtime for resource loading (same as jvmMain)
+            implementation(compose.runtime)
         }
         jvmMain.dependencies {
             implementation(libs.kotlinx.coroutinesSwing)
