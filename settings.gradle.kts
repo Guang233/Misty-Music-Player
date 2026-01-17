@@ -33,7 +33,6 @@ plugins {
 }
 
 include(":composeApp")
-include(":core")
 include("core:model")
 include("core:network")
 include("core:plugin-engine")
