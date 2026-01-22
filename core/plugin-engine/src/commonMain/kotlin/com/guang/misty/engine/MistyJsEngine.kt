@@ -47,6 +47,45 @@ class MistyJsEngine(
                 bridge.log(level, msg)
             }
 
+            // region Cookie 管理 API
+
+            // 请求登录
+            function("requestLogin") { args ->
+                val pluginId = args[0] as String
+                val loginUrl = args[1] as String
+                runBlocking {
+                    bridge.requestLogin(pluginId, loginUrl)
+                }
+            }
+
+            // 获取 Cookies
+            function("getCookies") { args ->
+                val pluginId = args[0] as String
+                val domain = args[1] as? String ?: ""
+                runBlocking {
+                    bridge.getCookies(pluginId, domain)
+                }
+            }
+
+            // 设置 Cookies
+            function("setCookies") { args ->
+                val pluginId = args[0] as String
+                val cookiesJson = args[1] as String
+                runBlocking {
+                    bridge.setCookies(pluginId, cookiesJson)
+                }
+            }
+
+            // 清除 Cookies
+            function("clearCookies") { args ->
+                val pluginId = args[0] as String
+                runBlocking {
+                    bridge.clearCookies(pluginId)
+                }
+            }
+
+            // endregion
+
             // region Crypto API：给 JS 暴露常见加解密能力
 
             function("md5") { args ->

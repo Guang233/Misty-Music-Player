@@ -8,7 +8,9 @@ import com.guang.misty.data.settings.PluginStorageData
 import com.guang.misty.data.settings.createPluginStorage
 import com.guang.misty.engine.MistyJsEngine
 import com.guang.misty.engine.MistyPluginManager
-import com.guang.misty.engine.bridge.MistyBridge
+import com.guang.misty.engine.bridge.StandardMistyBridge
+import com.guang.misty.engine.cookie.createCookieStorage
+import com.guang.misty.engine.cookie.createLoginHandler
 import com.guang.misty.model.MistyPluginMeta
 import com.guang.misty.network.MistyHttpClient
 import com.guang.misty.service.PluginService
@@ -58,6 +60,11 @@ data class PluginManagementState(
     val editingPluginCode: String = "",
     val isLoadingCode: Boolean = false,
     val isSavingCode: Boolean = false,
+    // 登录状态
+    val loginDialogVisible: Boolean = false,
+    val loginPluginId: String? = null,
+    val loginPluginName: String? = null,
+    val loginUrl: String? = null,
 )
 
 /**
@@ -92,18 +99,12 @@ class PluginManagerViewModel : ViewModel() {
     /**
      * 创建 MistyBridge 实例
      */
-    private fun createBridge(): MistyBridge {
-        return object : MistyBridge {
-            private val httpClient = MistyHttpClient()
-            
-            override suspend fun networkRequest(json: String): String {
-                return httpClient.execute(json)
-            }
-            
-            override fun log(level: String, msg: String) {
-                println("[$level] $msg")
-            }
-        }
+    private fun createBridge(): StandardMistyBridge {
+        val httpClient = MistyHttpClient()
+        val cookieStorage = createCookieStorage()
+        val loginHandler = createLoginHandler()
+
+        return StandardMistyBridge(httpClient, cookieStorage, loginHandler)
     }
     
     /**
@@ -493,6 +494,87 @@ class PluginManagerViewModel : ViewModel() {
     }
     
     /**
+     * 显示登录对话框
+     */
+    fun showLoginDialog(pluginId: String) {
+        val plugin = _state.value.plugins.find { it.id == pluginId } ?: return
+        val authConfig = plugin.meta?.auth ?: return
+
+        _state.update { it.copy(
+            loginDialogVisible = true,
+            loginPluginId = pluginId,
+            loginPluginName = plugin.meta?.name ?: pluginId,
+            loginUrl = authConfig.loginUrl
+        ) }
+    }
+
+    /**
+     * 隐藏登录对话框
+     */
+    fun hideLoginDialog() {
+        _state.update { it.copy(
+            loginDialogVisible = false,
+            loginPluginId = null,
+            loginPluginName = null,
+            loginUrl = null
+        ) }
+    }
+
+    /**
+     * 登录成功回调
+     * @param cookies 从 WebView 提取的 Cookie 列表
+     */
+    fun onLoginSuccess(cookies: List<com.guang.misty.engine.cookie.MistyCookie>) {
+        val pluginId = _state.value.loginPluginId ?: return
+
+        viewModelScope.launch {
+            try {
+                // 保存 Cookie
+                val cookieStorage = createCookieStorage()
+                cookieStorage.saveCookies(pluginId, cookies)
+
+                println("[PluginManager] Login successful for $pluginId, saved ${cookies.size} cookies")
+
+                // 隐藏对话框
+                hideLoginDialog()
+            } catch (e: Exception) {
+                println("[PluginManager] Failed to save cookies: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * 检查插件是否已登录（有保存的 Cookie）
+     */
+    fun isPluginLoggedIn(pluginId: String): Boolean {
+        return try {
+            val cookieStorage = createCookieStorage()
+            // 同步调用，在协程外部可能会阻塞
+            // TODO: 改为异步检查并更新 UI 状态
+            false // 暂时返回 false，避免阻塞
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 退出登录（清除 Cookie）
+     */
+    fun logout(pluginId: String) {
+        viewModelScope.launch {
+            try {
+                val cookieStorage = createCookieStorage()
+                cookieStorage.clearCookies(pluginId)
+                println("[PluginManager] Logged out from $pluginId")
+            } catch (e: Exception) {
+                println("[PluginManager] Failed to logout: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
      * 获取已加载并启用的插件管理器
      * 供外部使用（如搜索等功能）
      */
@@ -500,7 +582,7 @@ class PluginManagerViewModel : ViewModel() {
         ensureEngineInitialized()
         return pluginManager
     }
-    
+
     override fun onCleared() {
         super.onCleared()
         jsEngine?.close()

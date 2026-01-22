@@ -8,8 +8,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -201,7 +204,10 @@ fun PluginManagementScreen(
                             index = index,
                             onClick = { viewModel.openPluginEditor(plugin.id) },
                             onToggleEnabled = { viewModel.togglePluginEnabled(plugin.id) },
-                            onDelete = { pluginToDelete = plugin }
+                            onDelete = { pluginToDelete = plugin },
+                            onLoginClick = if (plugin.meta?.auth != null) {
+                                { viewModel.showLoginDialog(plugin.id) }
+                            } else null
                         )
                     }
                 }
@@ -251,7 +257,34 @@ fun PluginManagementScreen(
             )
         }
     }
+
+    // 登录对话框 (Android 平台特定)
+    if (state.loginDialogVisible && state.loginPluginId != null && state.loginUrl != null) {
+        PlatformLoginDialog(
+            pluginId = state.loginPluginId!!,
+            pluginName = state.loginPluginName ?: state.loginPluginId!!,
+            loginUrl = state.loginUrl!!,
+            onDismiss = { viewModel.hideLoginDialog() },
+            onLoginSuccess = { cookies ->
+                viewModel.onLoginSuccess(cookies)
+            }
+        )
+    }
 }
+
+/**
+ * 平台特定的登录对话框
+ * Android: WebView 登录
+ * Desktop: 显示提示信息（由 LoginHandler 处理）
+ */
+@Composable
+expect fun PlatformLoginDialog(
+    pluginId: String,
+    pluginName: String,
+    loginUrl: String,
+    onDismiss: () -> Unit,
+    onLoginSuccess: (List<com.guang.misty.engine.cookie.MistyCookie>) -> Unit
+)
 
 /**
  * 空状态内容
@@ -320,6 +353,7 @@ private fun AnimatedPluginCard(
     onClick: () -> Unit,
     onToggleEnabled: () -> Unit,
     onDelete: () -> Unit,
+    onLoginClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // 交错动画延迟
@@ -355,6 +389,7 @@ private fun AnimatedPluginCard(
         onClick = onClick,
         onToggleEnabled = onToggleEnabled,
         onDelete = onDelete,
+        onLoginClick = onLoginClick,
         modifier = modifier.graphicsLayer {
             alpha = animatedAlpha
             translationY = animatedTranslationY
@@ -371,6 +406,7 @@ private fun PluginCard(
     onClick: () -> Unit,
     onToggleEnabled: () -> Unit,
     onDelete: () -> Unit,
+    onLoginClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // 图标颜色动画
@@ -528,8 +564,27 @@ private fun PluginCard(
                     // 操作按钮
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        // 登录按钮（如果插件配置了 auth）
+                        if (plugin.meta?.auth != null && onLoginClick != null) {
+                            FilledTonalButton(
+                                onClick = onLoginClick,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Login,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(stringResource(Res.string.action_login))
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+
+                        // 删除按钮
                         TextButton(
                             onClick = onDelete,
                             colors = ButtonDefaults.textButtonColors(

@@ -130,7 +130,26 @@
     <string name="action_back">Back</string>
     <string name="action_search">Search</string>
     <string name="action_clear">Clear</string>
-    
+    <string name="action_login">Login</string>
+    <string name="action_logout">Logout</string>
+    <string name="action_done">Done</string>
+
+    <!-- Plugin Authentication -->
+    <string name="plugin_login_title">%1$s - Login</string>
+    <string name="plugin_login_loading">Loading...</string>
+    <string name="plugin_login_current_url">Current: %1$s</string>
+    <string name="plugin_login_complete_hint">Complete login in the browser, then click Done</string>
+    <string name="plugin_login_desktop_title">Desktop Login Instructions</string>
+    <string name="plugin_login_desktop_step1">1. The login page has been opened in your browser</string>
+    <string name="plugin_login_desktop_step2">2. After logging in, press F12 to open Developer Tools</string>
+    <string name="plugin_login_desktop_step3">3. Enter the following code in the console to get cookies:</string>
+    <string name="plugin_login_desktop_step4">4. Copy the output and paste it into the text field below</string>
+    <string name="plugin_login_desktop_step5">5. Click the \"Done\" button</string>
+    <string name="plugin_login_desktop_cookie_hint">Paste Cookie</string>
+    <string name="plugin_login_desktop_cookie_placeholder">name1=value1; name2=value2; ...</string>
+    <string name="plugin_login_desktop_error_empty">Could not parse valid cookies, please check the format</string>
+    <string name="plugin_login_desktop_error_parse">Cookie parsing failed: %1$s</string>
+
     <!-- Errors -->
     <string name="error_network">Network error</string>
     <string name="error_load_failed">Failed to load</string>

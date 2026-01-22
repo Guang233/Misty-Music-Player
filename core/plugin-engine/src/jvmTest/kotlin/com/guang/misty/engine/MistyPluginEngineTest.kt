@@ -35,6 +35,23 @@ class MistyPluginEngineTest {
             logs.add(level to msg)
             println("[$level] $msg")
         }
+
+        // Cookie 管理方法 (测试用空实现)
+        override suspend fun requestLogin(pluginId: String, loginUrl: String): String {
+            return """{"success":false,"cookies":[],"error":"Not implemented in test"}"""
+        }
+
+        override suspend fun getCookies(pluginId: String, domain: String): String {
+            return "[]"
+        }
+
+        override suspend fun setCookies(pluginId: String, cookiesJson: String): Boolean {
+            return true
+        }
+
+        override suspend fun clearCookies(pluginId: String): Boolean {
+            return true
+        }
     }
 
     @Test

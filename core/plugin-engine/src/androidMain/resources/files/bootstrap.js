@@ -249,5 +249,111 @@ misty.crypto = {
     },
 };
 
+// Cookie 和认证管理 API
+misty.auth = {
+    /**
+     * 请求用户登录并获取 Cookie
+     *
+     * Android: 打开 WebView 进行登录
+     * Desktop: 打开系统浏览器，弹出对话框让用户手动粘贴 Cookie
+     *
+     * @param {string} loginUrl - 登录页面 URL
+     * @returns {Object} LoginResult { success: boolean, cookies: Array, error?: string }
+     *
+     * @example
+     * var result = misty.auth.login("https://music.example.com/login");
+     * if (result.success) {
+     *     misty.log.info("登录成功，获取到 " + result.cookies.length + " 个 Cookie");
+     * } else {
+     *     misty.log.error("登录失败: " + result.error);
+     * }
+     */
+    login: function(loginUrl) {
+        // 获取当前插件 ID（从全局上下文）
+        var pluginId = this._currentPluginId || "unknown";
+        var resultJson = mistyInternal.requestLogin(pluginId, loginUrl);
+        return JSON.parse(resultJson);
+    },
+
+    /**
+     * 获取已保存的 Cookie
+     *
+     * @param {string} domain - 可选的域名过滤，不传或传空字符串表示返回所有 Cookie
+     * @returns {Array} Cookie 列表
+     *
+     * @example
+     * // 获取所有 Cookie
+     * var allCookies = misty.auth.getCookies();
+     *
+     * // 获取指定域名的 Cookie
+     * var cookies = misty.auth.getCookies("music.example.com");
+     */
+    getCookies: function(domain) {
+        var pluginId = this._currentPluginId || "unknown";
+        var domainFilter = domain || "";
+        var resultJson = mistyInternal.getCookies(pluginId, domainFilter);
+        return JSON.parse(resultJson);
+    },
+
+    /**
+     * 手动设置 Cookie（用于插件直接设置 Cookie）
+     *
+     * @param {Array} cookies - Cookie 列表
+     * @returns {boolean} 是否成功
+     *
+     * @example
+     * var success = misty.auth.setCookies([
+     *     {
+     *         name: "session_id",
+     *         value: "abc123",
+     *         domain: "music.example.com",
+     *         path: "/",
+     *         expiresAt: Date.now() + 86400000, // 1天后过期
+     *         secure: true,
+     *         httpOnly: true
+     *     }
+     * ]);
+     */
+    setCookies: function(cookies) {
+        var pluginId = this._currentPluginId || "unknown";
+        return mistyInternal.setCookies(pluginId, JSON.stringify(cookies));
+    },
+
+    /**
+     * 清除当前插件的所有 Cookie（用于退出登录）
+     *
+     * @returns {boolean} 是否成功
+     *
+     * @example
+     * misty.auth.clearCookies();
+     * misty.log.info("已退出登录");
+     */
+    clearCookies: function() {
+        var pluginId = this._currentPluginId || "unknown";
+        return mistyInternal.clearCookies(pluginId);
+    },
+
+    /**
+     * 将 Cookie 列表转换为 HTTP 请求头字符串
+     *
+     * @param {Array} cookies - Cookie 列表
+     * @returns {string} Cookie 字符串，格式: "name1=value1; name2=value2"
+     *
+     * @example
+     * var cookies = misty.auth.getCookies();
+     * var cookieHeader = misty.auth.toCookieString(cookies);
+     * // 在 HTTP 请求中使用
+     * var resp = misty.http.get(url, { "Cookie": cookieHeader });
+     */
+    toCookieString: function(cookies) {
+        return cookies.map(function(c) {
+            return c.name + "=" + c.value;
+        }).join("; ");
+    },
+
+    // 内部使用：当前插件 ID（由插件管理器设置）
+    _currentPluginId: null
+};
+
 // 返回 undefined，避免脚本返回对象
 undefined;

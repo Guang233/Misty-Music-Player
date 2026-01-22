@@ -130,7 +130,26 @@
     <string name="action_back">返回</string>
     <string name="action_search">搜索</string>
     <string name="action_clear">清除</string>
-    
+    <string name="action_login">登录</string>
+    <string name="action_logout">退出登录</string>
+    <string name="action_done">完成</string>
+
+    <!-- Plugin Authentication -->
+    <string name="plugin_login_title">%1$s - 登录</string>
+    <string name="plugin_login_loading">加载中...</string>
+    <string name="plugin_login_current_url">当前：%1$s</string>
+    <string name="plugin_login_complete_hint">在浏览器中完成登录，然后点击完成</string>
+    <string name="plugin_login_desktop_title">桌面端登录说明</string>
+    <string name="plugin_login_desktop_step1">1. 登录页面已在浏览器中打开</string>
+    <string name="plugin_login_desktop_step2">2. 完成登录后，按 F12 打开开发者工具</string>
+    <string name="plugin_login_desktop_step3">3. 在控制台输入以下代码获取 Cookie：</string>
+    <string name="plugin_login_desktop_step4">4. 复制输出结果并粘贴到下方文本框</string>
+    <string name="plugin_login_desktop_step5">5. 点击「完成」按钮</string>
+    <string name="plugin_login_desktop_cookie_hint">粘贴 Cookie</string>
+    <string name="plugin_login_desktop_cookie_placeholder">name1=value1; name2=value2; ...</string>
+    <string name="plugin_login_desktop_error_empty">未能解析到有效的 Cookie，请检查格式</string>
+    <string name="plugin_login_desktop_error_parse">Cookie 解析失败：%1$s</string>
+
     <!-- Errors -->
     <string name="error_network">网络错误</string>
     <string name="error_load_failed">加载失败</string>

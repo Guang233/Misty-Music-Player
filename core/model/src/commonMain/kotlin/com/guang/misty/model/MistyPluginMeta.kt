@@ -18,6 +18,17 @@ enum class MistyPluginCapability {
 }
 
 /**
+ * 插件登录配置
+ */
+@Serializable
+data class PluginAuthConfig(
+    val required: Boolean = false,          // 是否需要登录
+    val loginUrl: String,                   // 登录页面 URL
+    val loginMethod: String = "COOKIE",     // 登录方式：COOKIE | OAUTH
+    val supportAutoLogin: Boolean = false,  // 是否支持自动登录（通过拦截 Cookie）
+)
+
+/**
  * 插件基础信息（元数据）。
  *
  * 注意：Misty 本身不提供、也不内置任何音源，只负责加载和运行由社区提供的脚本。
@@ -45,5 +56,8 @@ data class MistyPluginMeta(
 
     // 插件作者可声明的额外免责声明/说明
     val disclaimer: String? = null,
+
+    // 登录配置（可选）
+    val auth: PluginAuthConfig? = null,
 )
 

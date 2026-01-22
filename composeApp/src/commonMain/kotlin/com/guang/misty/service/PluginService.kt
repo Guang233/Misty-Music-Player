@@ -5,7 +5,9 @@ import com.guang.misty.data.settings.PluginStorage
 import com.guang.misty.data.settings.createPluginStorage
 import com.guang.misty.engine.MistyJsEngine
 import com.guang.misty.engine.MistyPluginManager
-import com.guang.misty.engine.bridge.MistyBridge
+import com.guang.misty.engine.bridge.StandardMistyBridge
+import com.guang.misty.engine.cookie.createCookieStorage
+import com.guang.misty.engine.cookie.createLoginHandler
 import com.guang.misty.model.*
 import com.guang.misty.network.MistyHttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -132,18 +134,12 @@ object PluginService {
     /**
      * 创建 MistyBridge 实例
      */
-    private fun createBridge(): MistyBridge {
-        return object : MistyBridge {
-            private val httpClient = MistyHttpClient()
-            
-            override suspend fun networkRequest(json: String): String {
-                return httpClient.execute(json)
-            }
-            
-            override fun log(level: String, msg: String) {
-                println("[PluginService][$level] $msg")
-            }
-        }
+    private fun createBridge(): StandardMistyBridge {
+        val httpClient = MistyHttpClient()
+        val cookieStorage = createCookieStorage()
+        val loginHandler = createLoginHandler()
+
+        return StandardMistyBridge(httpClient, cookieStorage, loginHandler)
     }
     
     /**

@@ -12,6 +12,7 @@
 - [插件基本结构](#插件基本结构)
 - [网络访问规范（misty.http）](#网络访问规范mistyhttp)
 - [日志输出规范（misty.log）](#日志输出规范mistylog)
+- [Cookie 和认证管理（misty.auth）](#cookie-和认证管理mistyauth)
 - [音频资源（misty.audio）](#音频资源mistyaudio)
 - [加解密工具（misty.crypto）](#加解密工具mistycrypto)
 - [数据模型与返回格式](#数据模型与返回格式)
@@ -224,6 +225,158 @@ misty.log.debug("raw response: " + resp.body);
 ```
 
 内部会由宿主应用收集并输出，方便调试与问题排查。
+
+---
+
+## Cookie 和认证管理（`misty.auth`）
+
+许多音乐平台需要用户登录后才能获取完整的音频资源。Misty 提供了跨平台的 Cookie 管理和认证系统，支持用户登录并安全存储 Cookie。
+
+### 平台差异
+
+- **Android**: 使用 WebView 打开登录页面，自动拦截 Cookie
+- **Desktop**: 打开系统浏览器，弹出对话框让用户手动粘贴 Cookie
+
+### 登录流程
+
+```javascript
+// 请求用户登录
+var result = misty.auth.login("https://music.example.com/login");
+
+if (result.success) {
+    misty.log.info("登录成功，获取到 " + result.cookies.length + " 个 Cookie");
+    // Cookie 已自动保存，后续请求会自动携带
+} else {
+    misty.log.error("登录失败: " + result.error);
+}
+```
+
+### 获取已保存的 Cookie
+
+```javascript
+// 获取所有 Cookie
+var allCookies = misty.auth.getCookies();
+
+// 获取指定域名的 Cookie
+var cookies = misty.auth.getCookies("music.example.com");
+
+// 转换为 HTTP Cookie 请求头
+var cookieHeader = misty.auth.toCookieString(cookies);
+
+// 在请求中使用
+var resp = misty.http.get(url, { "Cookie": cookieHeader });
+```
+
+### 手动设置 Cookie
+
+某些场景下，插件可能需要手动构造和保存 Cookie：
+
+```javascript
+var success = misty.auth.setCookies([
+    {
+        name: "session_id",
+        value: "abc123",
+        domain: "music.example.com",
+        path: "/",
+        expiresAt: Date.now() + 86400000, // 1天后过期（Unix时间戳，毫秒）
+        secure: true,
+        httpOnly: true,
+        sameSite: "Lax"
+    }
+]);
+```
+
+### 退出登录
+
+```javascript
+// 清除当前插件的所有 Cookie
+misty.auth.clearCookies();
+misty.log.info("已退出登录");
+```
+
+### Cookie 数据结构
+
+```javascript
+{
+    name: "cookie_name",        // 必须：Cookie 名称
+    value: "cookie_value",      // 必须：Cookie 值
+    domain: "example.com",      // 必须：域名
+    path: "/",                  // 可选：路径，默认 "/"
+    expiresAt: 1234567890000,   // 可选：过期时间（Unix时间戳，毫秒），null 表示会话 Cookie
+    secure: false,              // 可选：是否仅 HTTPS，默认 false
+    httpOnly: false,            // 可选：是否仅 HTTP（不允许 JS 访问），默认 false
+    sameSite: "Lax"             // 可选：SameSite 策略 ("Strict" | "Lax" | "None")
+}
+```
+
+### 完整使用示例
+
+```javascript
+getAudioResource: function(songId, quality) {
+    try {
+        // 1. 先尝试使用已保存的 Cookie 请求
+        var cookies = misty.auth.getCookies("music.example.com");
+        var headers = {};
+
+        if (cookies.length > 0) {
+            headers["Cookie"] = misty.auth.toCookieString(cookies);
+        }
+
+        var resp = misty.http.get(
+            "https://api.music.example.com/song/" + songId + "/url?quality=" + quality,
+            headers
+        );
+        var data = JSON.parse(resp);
+
+        // 2. 如果返回 401 需要登录
+        if (data.code === 401 || data.code === 403) {
+            misty.log.info("需要登录，正在请求用户登录...");
+
+            var loginResult = misty.auth.login("https://music.example.com/login");
+
+            if (!loginResult.success) {
+                return misty.audio.errorResult(songId, quality, "登录失败: " + loginResult.error);
+            }
+
+            // 3. 登录成功，重试请求（Cookie 会自动携带）
+            var newCookies = misty.auth.getCookies("music.example.com");
+            headers["Cookie"] = misty.auth.toCookieString(newCookies);
+
+            resp = misty.http.get(
+                "https://api.music.example.com/song/" + songId + "/url?quality=" + quality,
+                headers
+            );
+            data = JSON.parse(resp);
+        }
+
+        // 4. 返回音频资源
+        if (!data.url) {
+            return misty.audio.errorResult(songId, quality, "未找到音频资源");
+        }
+
+        return misty.audio.successResult(
+            songId,
+            quality,
+            data.actualQuality || quality,
+            data.url,
+            {
+                format: data.format,
+                bitrateKbps: data.bitrate
+            }
+        );
+    } catch (err) {
+        misty.log.error("getAudioResource 失败: " + err.message);
+        return misty.audio.errorResult(songId, quality, err.message);
+    }
+}
+```
+
+### 安全性说明
+
+- **加密存储**: 所有 Cookie 使用 AES 加密后存储
+- **按插件隔离**: 每个插件的 Cookie 独立存储，互不影响
+- **自动过期**: 系统会自动过滤已过期的 Cookie
+- **域名绑定**: Cookie 仅在匹配的域名下使用
 
 ---
 
