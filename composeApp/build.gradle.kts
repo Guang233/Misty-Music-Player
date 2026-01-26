@@ -23,6 +23,9 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.ktor.client.android)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -37,7 +40,9 @@ kotlin {
             implementation(libs.materialKolor)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutinesCore)
-            
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+
             // Core modules
             implementation(project(":core:model"))
             implementation(project(":core:plugin-engine"))

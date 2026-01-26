@@ -174,10 +174,13 @@ MistyPlugins[PLUGIN_ID] = {
 
 引擎为插件提供统一的 HTTP 客户端，自动管理 Cookie、编码等。
 
+> ⚠️ **重要**：所有 `misty.http` 方法都是**同步**的，不需要使用 `await`。底层由 Kotlin 的 `runBlocking` 实现。
+
 ### 通用方法
 
 ```javascript
-const resp = await misty.http.request({
+// 同步调用，不需要 await
+var resp = misty.http.request({
   url: "https://api.example.com/path",
   method: "GET",                     // "GET" 或 "POST"，默认 "GET"
   headers: { "User-Agent": "..." },  // 可选
@@ -191,21 +194,21 @@ const resp = await misty.http.request({
 ### 快捷方法
 
 ```javascript
-// GET：返回 body 字符串
-const text = await misty.http.get(url, headers?, responseEncoding?);
+// GET：返回 body 字符串（同步）
+var text = misty.http.get(url, headers, responseEncoding);
 
-// POST：返回 body 字符串
-const text = await misty.http.post(
+// POST：返回 body 字符串（同步）
+var text = misty.http.post(
   url,
   body,
-  headers?,
-  bodyEncoding?,      // 默认 "string"
-  responseEncoding?,  // 默认 "string"
+  headers,
+  bodyEncoding,      // 默认 "string"
+  responseEncoding   // 默认 "string"
 );
 
 // 兼容：获取二进制（base64/hex）
-const base64Data = await misty.http.getBinary(url, headers?);
-const hexData    = await misty.http.getBinaryHex(url, headers?);
+var base64Data = misty.http.getBinary(url, headers);
+var hexData    = misty.http.getBinaryHex(url, headers);
 ```
 
 **建议：**

@@ -21,6 +21,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        // Android 复用 JVM 实现
+        androidMain {
+            dependsOn(jvmMain.get())
+        }
     }
 }
 

@@ -12,9 +12,10 @@ if (typeof misty === 'undefined') {
 }
 
 // HTTP 客户端 API
+// 注意：所有方法都是同步的，因为底层 mistyInternal.performRequest 通过 runBlocking 实现
 misty.http = {
     /**
-     * 通用请求方法（最灵活）
+     * 通用请求方法（最灵活）- 同步版本
      * @param {Object} options - 请求选项
      * @param {string} options.url - 请求 URL（必需）
      * @param {string} options.method - 请求方法，默认为 "GET"（"GET" 或 "POST"）
@@ -22,10 +23,10 @@ misty.http = {
      * @param {string} options.body - 请求体（可选）
      * @param {string} options.bodyEncoding - 请求体编码方式，默认为 "string"（"string", "hex", "base64"）
      * @param {string} options.responseEncoding - 响应体编码方式，默认为 "string"（"string", "hex", "base64"）
-     * @returns {Promise<Object>} 响应对象 { statusCode, headers, body, error? }
+     * @returns {Object} 响应对象 { statusCode, headers, body, error? }
      */
-    request: async function(options) {
-        const request = {
+    request: function(options) {
+        var request = {
             url: options.url,
             method: options.method || "GET",
             headers: options.headers || {},
@@ -33,8 +34,11 @@ misty.http = {
             bodyEncoding: options.bodyEncoding || "string",
             responseEncoding: options.responseEncoding || "string"
         };
-        const responseJson = await mistyInternal.performRequest(JSON.stringify(request));
-        const response = JSON.parse(responseJson);
+        var responseJson = mistyInternal.performRequest(JSON.stringify(request));
+        if (!responseJson || typeof responseJson !== 'string') {
+            throw new Error('Invalid response from performRequest: ' + String(responseJson));
+        }
+        var response = JSON.parse(responseJson);
         if (response.error) {
             throw new Error(response.error);
         }
@@ -42,61 +46,61 @@ misty.http = {
     },
 
     /**
-     * GET 请求（便捷方法）
+     * GET 请求（便捷方法）- 同步版本
      * @param {string} url - 请求 URL
      * @param {Object} headers - 请求头（可选）
      * @param {string} responseEncoding - 响应编码方式，默认为 "string"（"string", "hex", "base64"）
-     * @returns {Promise<string>} 响应体（根据 responseEncoding 解码后的字符串）
+     * @returns {string} 响应体（根据 responseEncoding 解码后的字符串）
      */
-    get: async function(url, headers = {}, responseEncoding = "string") {
-        const response = await misty.http.request({
+    get: function(url, headers, responseEncoding) {
+        var response = misty.http.request({
             url: url,
             method: "GET",
-            headers: headers,
-            responseEncoding: responseEncoding
+            headers: headers || {},
+            responseEncoding: responseEncoding || "string"
         });
         return response.body;
     },
 
     /**
-     * POST 请求（便捷方法）
+     * POST 请求（便捷方法）- 同步版本
      * @param {string} url - 请求 URL
      * @param {string} body - 请求体
      * @param {Object} headers - 请求头（可选）
      * @param {string} bodyEncoding - 请求体编码方式，默认为 "string"（"string", "hex", "base64"）
      * @param {string} responseEncoding - 响应编码方式，默认为 "string"（"string", "hex", "base64"）
-     * @returns {Promise<string>} 响应体（根据 responseEncoding 解码后的字符串）
+     * @returns {string} 响应体（根据 responseEncoding 解码后的字符串）
      */
-    post: async function(url, body, headers = {}, bodyEncoding = "string", responseEncoding = "string") {
-        const response = await misty.http.request({
+    post: function(url, body, headers, bodyEncoding, responseEncoding) {
+        var response = misty.http.request({
             url: url,
             method: "POST",
-            headers: headers,
+            headers: headers || {},
             body: body,
-            bodyEncoding: bodyEncoding,
-            responseEncoding: responseEncoding
+            bodyEncoding: bodyEncoding || "string",
+            responseEncoding: responseEncoding || "string"
         });
         return response.body;
     },
 
     /**
-     * 获取二进制数据（返回 base64 编码，向后兼容）
+     * 获取二进制数据（返回 base64 编码，向后兼容）- 同步版本
      * @param {string} url - 请求 URL
      * @param {Object} headers - 请求头（可选）
-     * @returns {Promise<string>} base64 编码的响应
+     * @returns {string} base64 编码的响应
      */
-    getBinary: async function(url, headers = {}) {
-        return await misty.http.get(url, headers, "base64");
+    getBinary: function(url, headers) {
+        return misty.http.get(url, headers, "base64");
     },
 
     /**
-     * 获取二进制数据（返回 hex 编码）
+     * 获取二进制数据（返回 hex 编码）- 同步版本
      * @param {string} url - 请求 URL
      * @param {Object} headers - 请求头（可选）
-     * @returns {Promise<string>} hex 编码的响应
+     * @returns {string} hex 编码的响应
      */
-    getBinaryHex: async function(url, headers = {}) {
-        return await misty.http.get(url, headers, "hex");
+    getBinaryHex: function(url, headers) {
+        return misty.http.get(url, headers, "hex");
     }
 };
 
