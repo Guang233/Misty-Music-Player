@@ -42,6 +42,7 @@ kotlin {
             implementation(project(":core:model"))
             implementation(project(":core:plugin-engine"))
             implementation(project(":core:network"))
+            implementation(project(":core:player"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

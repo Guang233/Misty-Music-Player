@@ -1,4 +1,4 @@
-package com.guang.misty.ui.theme
+﻿package com.guang.misty.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

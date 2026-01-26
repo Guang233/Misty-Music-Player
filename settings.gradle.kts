@@ -1,4 +1,4 @@
-rootProject.name = "misty"
+﻿rootProject.name = "misty"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -33,7 +33,8 @@ plugins {
 }
 
 include(":composeApp")
-include("core:model")
-include("core:network")
-include("core:plugin-engine")
-include("core:crypto")
+include(":core:model")
+include(":core:network")
+include(":core:plugin-engine")
+include(":core:crypto")
+include(":core:player")
