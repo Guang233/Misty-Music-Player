@@ -17,6 +17,7 @@ import com.guang.misty.ui.screens.library.LibraryScreen
 import com.guang.misty.ui.screens.playing.PlayingScreen
 import com.guang.misty.ui.screens.search.SearchScreen
 import com.guang.misty.ui.screens.settings.SettingsScreen
+import com.guang.misty.ui.screens.settings.debug.DebugScreen
 import com.guang.misty.ui.screens.settings.plugins.PluginManagementScreen
 import com.guang.misty.ui.theme.*
 import com.guang.misty.util.BackHandler
@@ -110,6 +111,10 @@ private fun MistyMainContent() {
                         onNavigateBack = { currentSubScreen = null }
                     )
                 }
+
+                is SubScreen.Debug -> {
+                    DebugScreen { currentSubScreen = null }
+                }
                 else -> {
                     // 其他子页面待实现
                 }
@@ -156,8 +161,9 @@ private fun MistyMainContent() {
             }
             MainDestination.Settings -> {
                 SettingsScreen(
-                            onNavigateToPlugins = { currentSubScreen = SubScreen.PluginManagement },
-                    onNavigateToAbout = { /* TODO */ }
+                    onNavigateToPlugins = { currentSubScreen = SubScreen.PluginManagement },
+                    onNavigateToAbout = { /* TODO */ },
+                    onNavigateToDebug = { currentSubScreen = SubScreen.Debug }
                 )
                     }
                 }

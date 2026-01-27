@@ -154,4 +154,7 @@
     <string name="error_network">网络错误</string>
     <string name="error_load_failed">加载失败</string>
     <string name="error_no_plugin">暂无可用插件</string>
+
+    <!-- DebugScreen -->
+    <string name="debug_title">调试</string>
 </resources>

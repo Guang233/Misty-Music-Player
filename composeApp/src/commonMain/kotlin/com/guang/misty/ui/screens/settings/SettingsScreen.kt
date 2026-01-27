@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun SettingsScreen(
     onNavigateToPlugins: () -> Unit,
+    onNavigateToDebug: () -> Unit,
     onNavigateToAbout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -171,12 +173,20 @@ fun SettingsScreen(
             // 关于设置组
             item {
                 SettingsGroup(title = stringResource(Res.string.settings_about)) {
-                    SettingsItem(
-                        icon = Icons.Outlined.Info,
-                        title = stringResource(Res.string.settings_about_app),
-                        subtitle = "版本 1.0.0",
-                        onClick = onNavigateToAbout
-                    )
+                    Column {
+                        SettingsItem(
+                            icon = Icons.Outlined.Info,
+                            title = stringResource(Res.string.settings_about_app),
+                            subtitle = "版本 1.0.0",
+                            onClick = onNavigateToAbout
+                        )
+
+                        SettingsItem(
+                            icon = Icons.Outlined.BugReport,
+                            title = stringResource(Res.string.debug_title),
+                            onClick = onNavigateToDebug
+                        )
+                    }
                 }
             }
             

@@ -154,4 +154,7 @@
     <string name="error_network">Network error</string>
     <string name="error_load_failed">Failed to load</string>
     <string name="error_no_plugin">No plugin available</string>
+
+    <!-- DebugScreen -->
+    <string name="debug_title">Debug</string>
 </resources>

@@ -81,4 +81,7 @@ sealed class SubScreen(val route: String) {
     
     // 关于
     data object About : SubScreen("settings/about")
+
+    // 调试
+    data object Debug : SubScreen("settings/debug")
 }
