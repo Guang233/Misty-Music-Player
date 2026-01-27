@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 /**
  * Android 播放器实现
@@ -324,7 +325,7 @@ class AndroidMistyPlayer(
                             .setTitle(item.song.name)
                             .setArtist(item.song.artists.joinToString { it.name })
                             .setAlbumTitle(item.song.album?.name)
-                            .setArtworkUri(item.song.coverUrl?.let { Uri.parse(it) })
+                            .setArtworkUri(item.song.coverUrl?.toUri())
                             .build()
                     )
                     .build()

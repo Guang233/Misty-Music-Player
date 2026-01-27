@@ -9,12 +9,18 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
+ * 日志回调函数类型
+ */
+typealias LogCallback = (level: String, tag: String, message: String) -> Unit
+
+/**
  * MistyBridge 的标准实现，使用 MistyHttpClient 处理网络请求
  */
 class StandardMistyBridge(
     private val httpClient: MistyHttpClient,
     cookieStorage: CookieStorage,
-    loginHandler: LoginHandler
+    loginHandler: LoginHandler,
+    private val logCallback: LogCallback? = null
 ) : MistyBridge {
 
     private val cookieManager = MistyCookieManager(cookieStorage, loginHandler)
@@ -28,9 +34,13 @@ class StandardMistyBridge(
     }
 
     override fun log(level: String, msg: String) {
-        // 简单的日志输出，可以根据需要扩展
-        val logMessage = "[$level] $msg"
-        println(logMessage)
+        // 使用回调或默认输出
+        if (logCallback != null) {
+            logCallback.invoke(level, "Plugin", msg)
+        } else {
+            val logMessage = "[$level] $msg"
+            println(logMessage)
+        }
     }
 
     // ===== Cookie 管理功能实现 =====

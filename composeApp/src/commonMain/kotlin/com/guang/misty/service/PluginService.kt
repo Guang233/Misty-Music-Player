@@ -10,6 +10,8 @@ import com.guang.misty.engine.cookie.createCookieStorage
 import com.guang.misty.engine.cookie.createLoginHandler
 import com.guang.misty.model.*
 import com.guang.misty.network.MistyHttpClient
+import com.guang.misty.util.LogLevel
+import com.guang.misty.util.MistyLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -112,7 +114,7 @@ object PluginService {
                             }
                         }
                     } catch (e: Exception) {
-                        println("Failed to load plugin ${installed.id}: ${e.message}")
+                        MistyLogger.e("PluginService", "Failed to load plugin ${installed.id}: ${e.message}", e)
                     }
                 }
                 
@@ -138,8 +140,20 @@ object PluginService {
         val httpClient = MistyHttpClient()
         val cookieStorage = createCookieStorage()
         val loginHandler = createLoginHandler()
+        
+        // 日志回调，将插件日志桥接到 MistyLogger
+        val logCallback: (String, String, String) -> Unit = { level, tag, message ->
+            val logLevel = when (level.uppercase()) {
+                "DEBUG" -> LogLevel.DEBUG
+                "INFO" -> LogLevel.INFO
+                "WARN", "WARNING" -> LogLevel.WARN
+                "ERROR" -> LogLevel.ERROR
+                else -> LogLevel.INFO
+            }
+            MistyLogger.log(logLevel, tag, message)
+        }
 
-        return StandardMistyBridge(httpClient, cookieStorage, loginHandler)
+        return StandardMistyBridge(httpClient, cookieStorage, loginHandler, logCallback)
     }
     
     /**
@@ -162,14 +176,14 @@ object PluginService {
                         try {
                             results.addAll(manager.search(plugin.id, keyword, page))
                         } catch (e: Exception) {
-                            println("Search failed for plugin ${plugin.id}: ${e.message}")
+                            MistyLogger.e("PluginService", "Search failed for plugin ${plugin.id}: ${e.message}", e)
                         }
                     }
                 }
                 results
             }
         } catch (e: Exception) {
-            println("Search failed: ${e.message}")
+            MistyLogger.e("PluginService", "Search failed: ${e.message}", e)
             emptyList()
         }
     }
@@ -201,7 +215,7 @@ object PluginService {
         return try {
             manager.getLyrics(pluginId, songId)
         } catch (e: Exception) {
-            println("Get lyrics failed: ${e.message}")
+            MistyLogger.e("PluginService", "Get lyrics failed: ${e.message}", e)
             null
         }
     }
@@ -215,7 +229,7 @@ object PluginService {
         return try {
             manager.getPlaylist(pluginId, playlistId)
         } catch (e: Exception) {
-            println("Get playlist failed: ${e.message}")
+            MistyLogger.e("PluginService", "Get playlist failed: ${e.message}", e)
             null
         }
     }
@@ -229,7 +243,7 @@ object PluginService {
         return try {
             manager.getAlbum(pluginId, albumId)
         } catch (e: Exception) {
-            println("Get album failed: ${e.message}")
+            MistyLogger.e("PluginService", "Get album failed: ${e.message}", e)
             null
         }
     }
@@ -245,7 +259,7 @@ object PluginService {
         return try {
             manager.getSearchSuggestions(pluginId, keyword)
         } catch (e: Exception) {
-            println("Get search suggestions failed: ${e.message}")
+            MistyLogger.e("PluginService", "Get search suggestions failed: ${e.message}", e)
             emptyList()
         }
     }
