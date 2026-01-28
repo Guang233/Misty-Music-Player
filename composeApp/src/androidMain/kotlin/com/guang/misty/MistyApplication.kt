@@ -10,8 +10,15 @@ import com.guang.misty.player.PlayerService
 import com.guang.misty.ui.util.createImageLoader
 
 class MistyApplication : Application(), SingletonImageLoader.Factory {
+    
+    companion object {
+        lateinit var instance: MistyApplication
+            private set
+    }
+    
     override fun onCreate() {
         super.onCreate()
+        instance = this
 
         // 初始化 CookieStorage
         CookieStorage.initialize(this)

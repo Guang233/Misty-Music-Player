@@ -157,4 +157,16 @@
 
     <!-- DebugScreen -->
     <string name="debug_title">Debug</string>
+    <string name="debug_empty_title">No logs</string>
+    <string name="debug_empty_hint">Logs will appear here when something happens</string>
+    <string name="debug_selected_count">%1$d selected</string>
+    <string name="debug_copied_message">Copied %1$d logs</string>
+    <string name="debug_cleared_message">Logs cleared</string>
+    <string name="debug_clear_title">Clear Logs</string>
+    <string name="debug_clear_confirm">Are you sure you want to clear all logs? This action cannot be undone.</string>
+    <string name="debug_scroll_to_bottom">Scroll to bottom</string>
+    <string name="debug_select_all">Select All</string>
+    <string name="debug_invert_selection">Invert Selection</string>
+    <string name="debug_copy">Copy</string>
+    <string name="debug_clear">Clear Logs</string>
 </resources>
