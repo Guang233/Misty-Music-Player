@@ -1,8 +1,14 @@
 package com.guang.misty.util
 
+import com.guang.misty.data.log.LogStorage
+import com.guang.misty.data.log.createLogStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * 日志级别
@@ -53,19 +59,56 @@ object LogStore {
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
     
+    // 用于文件写入的协程作用域
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    
+    // 延迟初始化日志存储
+    private val logStorage: LogStorage by lazy { createLogStorage() }
+    
     /**
      * 添加日志条目
      */
     fun add(entry: LogEntry) {
         _logs.value = (_logs.value + entry).takeLast(MAX_ENTRIES)
+        
+        // 异步写入文件
+        scope.launch {
+            try {
+                logStorage.appendLog(entry)
+            } catch (_: Exception) {
+                // 忽略写入异常
+            }
+        }
     }
     
     /**
-     * 清空所有日志
+     * 清空内存中的日志
      */
     fun clear() {
         _logs.value = emptyList()
     }
+    
+    /**
+     * 清空日志文件
+     */
+    suspend fun clearLogFile() {
+        logStorage.clearLogFile()
+    }
+    
+    /**
+     * 获取日志目录
+     */
+    fun getLogDirectory(): String = logStorage.getLogDirectory()
+    
+    /**
+     * 获取当前日志文件路径
+     */
+    fun getCurrentLogFile(): String = logStorage.getCurrentLogFile()
+    
+    /**
+     * 导出日志（用于分享）
+     */
+    suspend fun exportLogs(): String? = logStorage.exportLogs()
     
     /**
      * 获取指定级别及以上的日志

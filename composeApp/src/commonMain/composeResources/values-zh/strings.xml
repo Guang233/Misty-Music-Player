@@ -169,4 +169,8 @@
     <string name="debug_invert_selection">反选</string>
     <string name="debug_copy">复制</string>
     <string name="debug_clear">清空日志</string>
+    <string name="debug_export">导出</string>
+    <string name="debug_open_folder">打开日志目录</string>
+    <string name="debug_export_failed">导出失败</string>
+    <string name="debug_log_location">日志保存于：%1$s</string>
 </resources>

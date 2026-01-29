@@ -33,9 +33,11 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FlipToBack
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -74,6 +76,9 @@ import com.guang.misty.util.LogEntry
 import com.guang.misty.util.LogLevel
 import com.guang.misty.util.LogStore
 import com.guang.misty.util.copyToClipboard
+import com.guang.misty.util.isDesktopPlatform
+import com.guang.misty.util.openFolder
+import com.guang.misty.util.shareFile
 import kotlinx.coroutines.launch
 import misty.composeapp.generated.resources.Res
 import misty.composeapp.generated.resources.action_back
@@ -88,6 +93,9 @@ import misty.composeapp.generated.resources.debug_copy
 import misty.composeapp.generated.resources.debug_empty_hint
 import misty.composeapp.generated.resources.debug_empty_title
 import misty.composeapp.generated.resources.debug_invert_selection
+import misty.composeapp.generated.resources.debug_export
+import misty.composeapp.generated.resources.debug_export_failed
+import misty.composeapp.generated.resources.debug_open_folder
 import misty.composeapp.generated.resources.debug_scroll_to_bottom
 import misty.composeapp.generated.resources.debug_select_all
 import misty.composeapp.generated.resources.debug_selected_count
@@ -129,6 +137,7 @@ fun DebugScreen(
     // 字符串资源
     val copiedMessage = stringResource(Res.string.debug_copied_message)
     val clearedMessage = stringResource(Res.string.debug_cleared_message)
+    val exportFailedMessage = stringResource(Res.string.debug_export_failed)
     
     // 退出多选模式
     fun exitSelectionMode() {
@@ -304,6 +313,40 @@ fun DebugScreen(
                             }
                         }
                     } else {
+                        // 导出/打开目录按钮
+                        if (isDesktopPlatform) {
+                            // 桌面端：打开日志目录
+                            IconButton(
+                                onClick = {
+                                    openFolder(LogStore.getLogDirectory())
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FolderOpen,
+                                    contentDescription = stringResource(Res.string.debug_open_folder)
+                                )
+                            }
+                        } else {
+                            // 移动端：分享日志
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        val exportPath = LogStore.exportLogs()
+                                        if (exportPath != null) {
+                                            shareFile(exportPath, "text/plain")
+                                        } else {
+                                            snackbarHostState.showSnackbar(exportFailedMessage)
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = stringResource(Res.string.debug_export)
+                                )
+                            }
+                        }
+                        
                         // 清空日志按钮
                         IconButton(
                             onClick = { showClearDialog = true },

@@ -169,4 +169,8 @@
     <string name="debug_invert_selection">Invert Selection</string>
     <string name="debug_copy">Copy</string>
     <string name="debug_clear">Clear Logs</string>
+    <string name="debug_export">Export</string>
+    <string name="debug_open_folder">Open Log Folder</string>
+    <string name="debug_export_failed">Export failed</string>
+    <string name="debug_log_location">Logs saved to: %1$s</string>
 </resources>
