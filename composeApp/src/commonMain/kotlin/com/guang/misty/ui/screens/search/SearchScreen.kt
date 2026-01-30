@@ -281,9 +281,9 @@ fun SearchScreen(
                     viewModel.clearSuggestions()
                     isSearchMode = false
                 }
-            )
+                        )
+                    }
                 }
-    }
 }
 
 /**
@@ -438,7 +438,7 @@ private fun SearchOverlay(
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 if (textFieldValue.text.isEmpty()) {
-                                    Text(
+                    Text(
                                         text = stringResource(Res.string.search_hint),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -477,8 +477,8 @@ private fun SearchOverlay(
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
-                        )
-                    }
+                            )
+                        }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface

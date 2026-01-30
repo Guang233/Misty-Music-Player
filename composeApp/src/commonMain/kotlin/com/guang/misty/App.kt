@@ -17,6 +17,7 @@ import com.guang.misty.ui.screens.library.LibraryScreen
 import com.guang.misty.ui.screens.playing.PlayingScreen
 import com.guang.misty.ui.screens.search.SearchScreen
 import com.guang.misty.ui.screens.settings.SettingsScreen
+import com.guang.misty.ui.screens.player.PlayerScreen
 import com.guang.misty.ui.screens.settings.debug.DebugScreen
 import com.guang.misty.ui.screens.settings.plugins.PluginManagementScreen
 import com.guang.misty.ui.theme.*
@@ -92,8 +93,21 @@ private fun MistyMainContent() {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         transitionSpec = {
-            if (targetState != null) {
-                // 进入子页面：从右滑入
+            // 播放器界面使用上下滑动动画
+            val isPlayerScreen = targetState is SubScreen.PlayerDetail || initialState is SubScreen.PlayerDetail
+            
+            if (isPlayerScreen) {
+                if (targetState != null) {
+                    // 进入播放器：从下滑入
+                    slideInVertically { it } + fadeIn() togetherWith
+                        fadeOut()
+                } else {
+                    // 退出播放器：向下滑出
+                    fadeIn() togetherWith
+                        slideOutVertically { it } + fadeOut()
+                }
+            } else if (targetState != null) {
+                // 进入其他子页面：从右滑入
                 slideInHorizontally { it } + fadeIn() togetherWith
                     slideOutHorizontally { -it / 3 } + fadeOut()
             } else {
@@ -115,6 +129,12 @@ private fun MistyMainContent() {
                 is SubScreen.Debug -> {
                     DebugScreen { currentSubScreen = null }
                 }
+                is SubScreen.PlayerDetail -> {
+                    PlayerScreen(
+                        onNavigateBack = { currentSubScreen = null },
+                        onNavigateToQueue = { /* TODO: 跳转到播放队列 */ }
+                    )
+                }
                 else -> {
                     // 其他子页面待实现
                 }
@@ -131,7 +151,7 @@ private fun MistyMainContent() {
                 progress = progress,
                 onPlayPauseClick = { isPlaying = !isPlaying },
                 onNextClick = { /* TODO */ },
-                onClick = { /* TODO: 打开全屏播放器 */ }
+                onClick = { currentSubScreen = SubScreen.PlayerDetail }
             )
         }
     ) {
@@ -141,7 +161,7 @@ private fun MistyMainContent() {
                 PlayingScreen(
                     onNavigateToSearch = { currentDestination = MainDestination.Search },
                     onNavigateToLibrary = { currentDestination = MainDestination.Library },
-                    onNavigateToPlayer = { /* TODO: 全屏播放器 */ }
+                    onNavigateToPlayer = { currentSubScreen = SubScreen.PlayerDetail }
                 )
             }
             MainDestination.Search -> {
