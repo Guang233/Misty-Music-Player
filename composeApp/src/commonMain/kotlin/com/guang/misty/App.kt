@@ -8,6 +8,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.guang.misty.player.PlayerService
+import com.guang.misty.player.PlayerState
+import com.guang.misty.player.PlaybackState
 import com.guang.misty.ui.components.CurrentSongInfo
 import com.guang.misty.ui.components.MiniPlayer
 import com.guang.misty.ui.navigation.MainDestination
@@ -66,20 +69,28 @@ private fun MistyMainContent() {
     // 子页面导航状态
     var currentSubScreen by remember { mutableStateOf<SubScreen?>(null) }
     
-    // TODO: 从 ViewModel 获取播放状态
-    var currentSong by remember { mutableStateOf<CurrentSongInfo?>(null) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var progress by remember { mutableFloatStateOf(0f) }
+    // 从 PlayerService 获取播放状态
+    val playerState by PlayerService.state.collectAsState()
     
-    // 示例：模拟有歌曲在播放
-    // currentSong = CurrentSongInfo(
-    //     id = "1",
-    //     title = "晴天",
-    //     artist = "周杰伦",
-    //     duration = 269000,
-    //     currentPosition = 83000
-    // )
-    // progress = 0.31f
+    // 转换为 MiniPlayer 所需的格式
+    val currentSong = remember(playerState.currentSong) {
+        playerState.currentSong?.let { song ->
+            CurrentSongInfo(
+                id = song.id,
+                title = song.name,
+                artist = song.artists.joinToString(", ") { it.name },
+                coverUrl = song.coverUrl,
+                duration = playerState.duration,
+                currentPosition = playerState.position
+            )
+        }
+    }
+    val isPlaying = playerState.isPlaying
+    val progress = remember(playerState.position, playerState.duration) {
+        if (playerState.duration > 0) {
+            playerState.position.toFloat() / playerState.duration.toFloat()
+        } else 0f
+    }
     
     // 处理系统返回键：如果在子页面，返回主导航
     BackHandler(enabled = currentSubScreen != null) {
@@ -149,8 +160,8 @@ private fun MistyMainContent() {
                 currentSong = currentSong,
                 isPlaying = isPlaying,
                 progress = progress,
-                onPlayPauseClick = { isPlaying = !isPlaying },
-                onNextClick = { /* TODO */ },
+                onPlayPauseClick = { PlayerService.playPause() },
+                onNextClick = { PlayerService.next() },
                 onClick = { currentSubScreen = SubScreen.PlayerDetail }
             )
         }

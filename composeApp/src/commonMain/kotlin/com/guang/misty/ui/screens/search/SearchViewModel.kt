@@ -4,10 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.guang.misty.data.settings.MistySettings
 import com.guang.misty.data.settings.createSettingsStorage
+import com.guang.misty.model.MistyAudioQuality
 import com.guang.misty.model.MistyPluginCapability
 import com.guang.misty.model.MistySong
+import com.guang.misty.player.PlayerService
+import com.guang.misty.player.QueueItem
 import com.guang.misty.service.LoadedPlugin
 import com.guang.misty.service.PluginService
+import com.guang.misty.util.MistyLogger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -264,5 +268,87 @@ class SearchViewModel : ViewModel() {
     fun clearSuggestions() {
         suggestionsJob?.cancel()
         _state.update { it.copy(suggestions = emptyList(), isLoadingSuggestions = false) }
+    }
+    
+    /**
+     * 播放指定歌曲
+     * 会自动获取音频 URL 并开始播放
+     */
+    fun playSong(song: MistySong) {
+        viewModelScope.launch {
+            try {
+                MistyLogger.d("SearchViewModel", "Playing song: ${song.name} (${song.source}:${song.id})")
+                
+                // 从插件获取音频资源
+                val result = PluginService.getAudioResource(
+                    pluginId = song.source,
+                    songId = song.id,
+                    quality = MistyAudioQuality.HIGH // 默认使用高音质
+                )
+                
+                val resource = result.resource
+                if (resource != null) {
+                    MistyLogger.d("SearchViewModel", "Got audio URL: ${resource.url}")
+                    
+                    // 构建 headers（如果 resource.extras 中有的话）
+                    val headers = resource.extras.toMutableMap()
+                    
+                    // 播放歌曲
+                    PlayerService.play(song, resource.url, headers)
+                } else {
+                    MistyLogger.e("SearchViewModel", "Failed to get audio resource: ${result.error}")
+                }
+            } catch (e: Exception) {
+                MistyLogger.e("SearchViewModel", "Play song failed: ${e.message}", e)
+            }
+        }
+    }
+    
+    /**
+     * 播放歌曲列表（将当前搜索结果作为播放队列）
+     * @param startIndex 从哪首歌开始播放
+     */
+    fun playAllFromIndex(startIndex: Int) {
+        viewModelScope.launch {
+            val songs = _state.value.searchResults
+            if (songs.isEmpty() || startIndex !in songs.indices) return@launch
+            
+            try {
+                MistyLogger.d("SearchViewModel", "Playing from index $startIndex, total ${songs.size} songs")
+                
+                // 获取所有歌曲的音频资源并构建队列
+                val queueItems = mutableListOf<QueueItem>()
+                
+                for (song in songs) {
+                    try {
+                        val result = PluginService.getAudioResource(
+                            pluginId = song.source,
+                            songId = song.id,
+                            quality = MistyAudioQuality.HIGH
+                        )
+                        val res = result.resource
+                        if (res != null) {
+                            queueItems.add(QueueItem(
+                                song = song,
+                                audioUrl = res.url,
+                                headers = res.extras
+                            ))
+                        }
+                    } catch (e: Exception) {
+                        MistyLogger.w("SearchViewModel", "Failed to get audio for ${song.name}: ${e.message}")
+                    }
+                }
+                
+                if (queueItems.isNotEmpty()) {
+                    // 找到对应的 startIndex（可能因为某些歌曲获取失败而偏移）
+                    val actualStartIndex = queueItems.indexOfFirst { it.song.id == songs[startIndex].id }
+                        .takeIf { it >= 0 } ?: 0
+                    
+                    PlayerService.setQueue(queueItems, actualStartIndex)
+                }
+            } catch (e: Exception) {
+                MistyLogger.e("SearchViewModel", "Play all failed: ${e.message}", e)
+            }
+        }
     }
 }

@@ -147,7 +147,7 @@ fun SearchScreen(
                         ) { _, song ->
                             SongListItem(
                                 song = song,
-                                onClick = { /* TODO: 播放歌曲 */ },
+                                onClick = { viewModel.playSong(song) },
                                 onMenuClick = { /* TODO: 显示菜单 */ }
                             )
                         }

@@ -899,7 +899,7 @@ private fun EditPluginDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 300.dp, max = 500.dp)
+                    .heightIn(min = 300.dp)
             ) {
                 if (isLoading) {
                     Box(
