@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +56,10 @@ fun PlayerTopBar(
     onNavigateBack: () -> Unit,
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    isImmersive: Boolean = false,
+    onToggleImmersive: (() -> Unit)? = null,
+    showImmersiveButton: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -117,6 +123,17 @@ fun PlayerTopBar(
                         }
                     }
                 }
+            }
+        }
+        
+        // 沉浸模式按钮（可选）
+        if (showImmersiveButton && onToggleImmersive != null) {
+            IconButton(onClick = onToggleImmersive) {
+                Icon(
+                    imageVector = if (isImmersive) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                    contentDescription = if (isImmersive) "退出沉浸模式" else "进入沉浸模式",
+                    tint = contentColor
+                )
             }
         }
         

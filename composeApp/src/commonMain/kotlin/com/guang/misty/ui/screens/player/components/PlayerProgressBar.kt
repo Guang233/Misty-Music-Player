@@ -1,6 +1,7 @@
 package com.guang.misty.ui.screens.player.components
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -74,9 +75,22 @@ fun PlayerProgressBar(
         label = "trackHeightAnimation"
     )
     
-    val progress = if (duration > 0) {
+    // 计算目标进度值
+    val targetProgress = if (duration > 0) {
         if (isDragging) dragPosition else position.toFloat() / duration
     } else 0f
+    
+    // 平滑进度动画（拖动时不使用动画，实时响应）
+    val animatedProgress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = tween(
+            durationMillis = if (isDragging) 0 else 250
+        ),
+        label = "progressAnimation"
+    )
+    
+    // 使用动画后的进度值（拖动时使用实时值）
+    val progress = if (isDragging) dragPosition else animatedProgress
     
     val displayPosition = if (isDragging) {
         (dragPosition * duration).toLong()
@@ -84,7 +98,8 @@ fun PlayerProgressBar(
         position
     }
     
-    val activeColor = contentColor
+    // 使用主题色作为进度条颜色
+    val activeColor = MaterialTheme.colorScheme.primary
     val inactiveColor = contentColor.copy(alpha = 0.3f)
     
     Column(modifier = modifier.fillMaxWidth()) {

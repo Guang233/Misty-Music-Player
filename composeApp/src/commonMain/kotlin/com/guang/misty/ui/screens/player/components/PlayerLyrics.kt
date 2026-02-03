@@ -1,6 +1,17 @@
 package com.guang.misty.ui.screens.player.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,8 +23,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material3.Icon
@@ -21,128 +34,369 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.guang.misty.model.LyricDisplayMode
+import com.guang.misty.model.LyricLine
+import com.guang.misty.model.LyricWord
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import kotlin.math.abs
-
-/**
- * 歌词行数据
- */
-data class LyricLine(
-    val timeMs: Long,
-    val text: String,
-    val translation: String? = null  // 可选的翻译歌词
-)
 
 /**
  * 播放器歌词组件 - MD3 Expressive 风格
  * 
  * 特点：
- * - 自动滚动到当前歌词行
- * - 当前行高亮显示，周围行渐变透明
- * - 支持点击切换沉浸模式
- * - 支持显示翻译歌词
- * - 沉浸模式与普通模式字体大小一致
+ * - 支持逐行和逐字高亮
+ * - 自动滚动使当前歌词居中显示
+ * - 手动滚动后暂停自动滚动，3秒后自动恢复
+ * - 点击歌词行跳转到对应时间（带水波纹效果）
+ * - 平滑的透明度和缩放过渡动画
+ * - 支持显示原文/译文/罗马音
  */
 @Composable
 fun PlayerLyrics(
     lyrics: List<LyricLine>,
     currentIndex: Int,
+    currentPosition: Long,
+    displayMode: LyricDisplayMode,
+    onSeekTo: (Long) -> Unit,
     onToggleImmersive: () -> Unit,
     modifier: Modifier = Modifier,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     highlightColor: Color = MaterialTheme.colorScheme.primary,
-    isImmersive: Boolean = false
+    isImmersive: Boolean = false,
+    isTransitioning: Boolean = false, // 是否正在进行过渡动画（沉浸模式切换时）
+    onLongPress: (() -> Unit)? = null, // 长按回调，用于小屏幕设备切换沉浸模式
+    // 歌词模式切换相关
+    hasTranslation: Boolean = false,
+    hasRomanization: Boolean = false,
+    onLyricModeChange: ((LyricDisplayMode) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
-    val interactionSource = remember { MutableInteractionSource() }
+    val coroutineScope = rememberCoroutineScope()
     
-    // 自动滚动到当前歌词
+    // 视口高度（用于计算居中偏移）
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    
+    // 手动滚动检测
+    var isUserScrolling by remember { mutableStateOf(false) }
+    var scrollResumeJob by remember { mutableStateOf<Job?>(null) }
+    
+    // 标记是否正在进行自动滚动
+    var isAutoScrolling by remember { mutableStateOf(false) }
+    
+    // 用户点击跳转时的目标索引（-1 表示无）
+    var pendingSeekIndex by remember { mutableIntStateOf(-1) }
+    
+    // 滚动到指定索引（使用较慢的动画速度）
+    suspend fun scrollToIndex(targetLyricIndex: Int) {
+        if (targetLyricIndex >= 0 && targetLyricIndex < lyrics.size && viewportHeight > 0) {
+            val centerOffset = -(viewportHeight / 2 - 40)
+            val targetIndex = targetLyricIndex + 1 // +1 因为有顶部 Spacer
+            
+            isAutoScrolling = true
+            try {
+                val currentFirstVisible = listState.firstVisibleItemIndex
+                val distance = abs(targetIndex - currentFirstVisible)
+                
+                if (distance > 8) {
+                    // 远距离滚动：先快速定位到目标附近
+                    val intermediateIndex = if (targetIndex > currentFirstVisible) {
+                        targetIndex - 3
+                    } else {
+                        targetIndex + 3
+                    }.coerceIn(0, lyrics.size)
+                    
+                    listState.scrollToItem(index = intermediateIndex, scrollOffset = 0)
+                    delay(50)
+                }
+                
+                // 使用 animateScrollBy 配合较慢的 tween 实现平滑滚动
+                val layoutInfo = listState.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                val targetItem = visibleItems.find { it.index == targetIndex }
+                
+                if (targetItem != null) {
+                    // 目标在可见范围内，计算精确滚动距离
+                    val viewportCenter = viewportHeight / 2
+                    val itemCenter = targetItem.offset + targetItem.size / 2
+                    val scrollDistance = itemCenter - viewportCenter
+                    
+                    listState.animateScrollBy(
+                        value = scrollDistance.toFloat(),
+                        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
+                    )
+                } else {
+                    // 目标不在可见范围，使用 animateScrollToItem
+                    listState.animateScrollToItem(index = targetIndex, scrollOffset = centerOffset)
+                }
+            } finally {
+                isAutoScrolling = false
+            }
+        }
+    }
+    
+    // 监听滚动状态变化，区分用户滚动和自动滚动
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { isScrolling ->
+                if (isScrolling && !isAutoScrolling) {
+                    isUserScrolling = true
+                    scrollResumeJob?.cancel()
+                } else if (!isScrolling && isUserScrolling) {
+                    scrollResumeJob?.cancel()
+                    scrollResumeJob = coroutineScope.launch {
+                        delay(3000)
+                        isUserScrolling = false
+                    }
+                }
+            }
+    }
+    
+    // 当 isUserScrolling 变为 false 时，自动滚动回当前歌词位置
+    LaunchedEffect(isUserScrolling) {
+        if (!isUserScrolling && !isTransitioning && pendingSeekIndex < 0 && 
+            currentIndex >= 0 && viewportHeight > 0) {
+            delay(50)
+            scrollToIndex(currentIndex)
+        }
+    }
+    
+    // 自动滚动到当前歌词 - 每次 currentIndex 变化都触发
     LaunchedEffect(currentIndex) {
-        if (currentIndex >= 0 && currentIndex < lyrics.size) {
-            listState.animateScrollToItem(
-                index = currentIndex,
-                scrollOffset = -200  // 偏移量，让当前歌词居中偏上
-            )
+        if (currentIndex < 0 || currentIndex >= lyrics.size || viewportHeight <= 0) return@LaunchedEffect
+        
+        // 如果有待处理的点击跳转
+        if (pendingSeekIndex >= 0) {
+            if (currentIndex == pendingSeekIndex) {
+                // currentIndex 已更新到用户点击的位置，现在滚动
+                pendingSeekIndex = -1
+                isUserScrolling = false
+                scrollResumeJob?.cancel()
+                scrollToIndex(currentIndex)
+            }
+            // 如果 currentIndex 还没更新到目标位置，不做任何事，继续等待
+            return@LaunchedEffect
+        }
+        
+        // 正常的自动滚动
+        if (!isUserScrolling && !isTransitioning) {
+            scrollToIndex(currentIndex)
+        }
+    }
+    
+    // 过渡动画结束后，自动滚动到当前歌词
+    LaunchedEffect(isTransitioning) {
+        if (!isTransitioning && !isUserScrolling && pendingSeekIndex < 0 &&
+            currentIndex >= 0 && viewportHeight > 0) {
+            delay(100)
+            scrollToIndex(currentIndex)
+        }
+    }
+    
+    // 切换歌词显示模式后，重新居中当前歌词（因为歌词高度可能变化）
+    LaunchedEffect(displayMode) {
+        if (!isUserScrolling && currentIndex >= 0 && viewportHeight > 0) {
+            delay(300) // 等待高度动画完成
+            scrollToIndex(currentIndex)
         }
     }
     
     Box(
         modifier = modifier
             .fillMaxSize()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,  // 无点击效果
-                onClick = onToggleImmersive
-            )
+            .onSizeChanged { size ->
+                viewportHeight = size.height
+            }
     ) {
         if (lyrics.isEmpty()) {
             // 空状态
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lyrics,
-                    contentDescription = null,
-                    modifier = Modifier.size(56.dp),
-                    tint = contentColor.copy(alpha = 0.4f)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "暂无歌词",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = contentColor.copy(alpha = 0.5f)
-                )
-            }
+            EmptyLyricsView(
+                contentColor = contentColor,
+                onToggleImmersive = onToggleImmersive
+            )
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 顶部间距
-                item { 
-                    Spacer(modifier = Modifier.height(80.dp)) 
-                }
-                
-                itemsIndexed(lyrics) { index, line ->
-                    val isCurrent = index == currentIndex
-                    val distance = abs(index - currentIndex)
-                    
-                    // 根据距离计算透明度
-                    val alpha = when {
-                        isCurrent -> 1f
-                        distance == 1 -> 0.65f
-                        distance == 2 -> 0.45f
-                        distance == 3 -> 0.3f
-                        else -> 0.2f
+            // 歌词列表
+            LyricsListView(
+                lyrics = lyrics,
+                currentIndex = currentIndex,
+                currentPosition = currentPosition,
+                displayMode = displayMode,
+                listState = listState,
+                viewportHeight = viewportHeight,
+                contentColor = contentColor,
+                highlightColor = highlightColor,
+                onLineClick = { index ->
+                    val line = lyrics.getOrNull(index)
+                    if (line != null) {
+                        // 记录用户点击的目标索引
+                        pendingSeekIndex = index
+                        
+                        // 取消之前的恢复任务
+                        scrollResumeJob?.cancel()
+                        
+                        // 跳转播放位置，等待 currentIndex 更新后再滚动
+                        onSeekTo(line.startTimeMs)
                     }
-                    
-                    LyricLineItem(
-                        line = line,
-                        isCurrent = isCurrent,
-                        alpha = alpha,
-                        contentColor = contentColor,
-                        highlightColor = highlightColor
-                    )
-                }
-                
-                // 底部间距
-                item { 
-                    Spacer(modifier = Modifier.height(120.dp)) 
-                }
+                },
+                onLineLongPress = onLongPress,
+                onBackgroundClick = onToggleImmersive
+            )
+            
+            // 歌词模式切换按钮（右下角，沉浸模式时隐藏）
+            AnimatedVisibility(
+                visible = !isImmersive && onLyricModeChange != null && (hasTranslation || hasRomanization),
+                enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
+                exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.8f),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                LyricModeToggle(
+                    currentMode = displayMode,
+                    hasTranslation = hasTranslation,
+                    hasRomanization = hasRomanization,
+                    onModeChange = onLyricModeChange ?: {},
+                    contentColor = contentColor
+                )
             }
+        }
+    }
+}
+
+/**
+ * 空歌词状态
+ */
+@Composable
+private fun EmptyLyricsView(
+    contentColor: Color,
+    onToggleImmersive: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onToggleImmersive
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Lyrics,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = contentColor.copy(alpha = 0.4f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "暂无歌词",
+            style = MaterialTheme.typography.bodyLarge,
+            color = contentColor.copy(alpha = 0.5f)
+        )
+    }
+}
+
+/**
+ * 歌词列表视图
+ */
+@Composable
+private fun LyricsListView(
+    lyrics: List<LyricLine>,
+    currentIndex: Int,
+    currentPosition: Long,
+    displayMode: LyricDisplayMode,
+    listState: LazyListState,
+    viewportHeight: Int,
+    contentColor: Color,
+    highlightColor: Color,
+    onLineClick: (Int) -> Unit,
+    onLineLongPress: (() -> Unit)?,
+    onBackgroundClick: () -> Unit
+) {
+    val density = LocalDensity.current
+    
+    // 计算顶部/底部间距：让第一句/最后一句最多滚动到屏幕中央（减去一点偏移让它不要完全到中央）
+    val verticalPaddingPx = if (viewportHeight > 0) {
+        // 视口高度的一半减去一些偏移，这样第一句/最后一句最多到中央附近
+        (viewportHeight / 2 - 60).coerceAtLeast(80)
+    } else {
+        200
+    }
+    val verticalPaddingDp = with(density) { verticalPaddingPx.toDp() }
+    
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onBackgroundClick() }
+                )
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 顶部间距（让第一句歌词可以居中）
+        item(key = "top_spacer") {
+            Spacer(modifier = Modifier.height(verticalPaddingDp))
+        }
+        
+        itemsIndexed(lyrics, key = { index, _ -> "lyric_$index" }) { index, line ->
+            val isCurrent = index == currentIndex
+            val distance = abs(index - currentIndex.coerceAtLeast(0))
+            
+            // 根据距离计算目标透明度
+            val targetAlpha = when {
+                isCurrent -> 1f
+                distance == 1 -> 0.7f
+                distance == 2 -> 0.5f
+                distance == 3 -> 0.35f
+                else -> 0.2f
+            }
+            
+            LyricLineItem(
+                line = line,
+                isCurrent = isCurrent,
+                currentPosition = currentPosition,
+                displayMode = displayMode,
+                targetAlpha = targetAlpha,
+                contentColor = contentColor,
+                highlightColor = highlightColor,
+                onClick = { onLineClick(index) },
+                onLongPress = onLineLongPress
+            )
+        }
+        
+        // 底部间距（让最后一句歌词可以居中）
+        item(key = "bottom_spacer") {
+            Spacer(modifier = Modifier.height(verticalPaddingDp))
         }
     }
 }
@@ -150,68 +404,178 @@ fun PlayerLyrics(
 /**
  * 单行歌词显示
  * 
- * 字体大小固定，不受沉浸模式影响
+ * 包含平滑的透明度和缩放过渡动画
+ * 统一字号，仅通过颜色、字重、透明度和缩放区分当前歌词
+ * 支持单击跳转播放、长按切换沉浸模式
  */
 @Composable
 private fun LyricLineItem(
     line: LyricLine,
     isCurrent: Boolean,
-    alpha: Float,
+    currentPosition: Long,
+    displayMode: LyricDisplayMode,
+    targetAlpha: Float,
     contentColor: Color,
-    highlightColor: Color
+    highlightColor: Color,
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)? = null
 ) {
+    // 平滑的透明度过渡
+    val animatedAlpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+        label = "alpha"
+    )
+    
+    // 当前行的缩放效果（微微放大，不会导致换行）
+    val scale by animateFloatAsState(
+        targetValue = if (isCurrent) 1.03f else 1f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "scale"
+    )
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(alpha),
+            .animateContentSize(
+                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+            )
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = animatedAlpha
+            }
+            .clip(RoundedCornerShape(12.dp))
+            .then(
+                if (onLongPress != null) {
+                    // 小屏幕：使用 pointerInput 支持长按（无水波纹）
+                    Modifier.pointerInput(onLongPress) {
+                        detectTapGestures(
+                            onTap = { onClick() },
+                            onLongPress = { onLongPress() }
+                        )
+                    }
+                } else {
+                    // 大屏幕：使用 clickable 带水波纹效果
+                    Modifier.clickable(onClick = onClick)
+                }
+            )
+            .padding(vertical = 10.dp, horizontal = 8.dp), // 适中的间距
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 主歌词 - 固定字体大小
-        Text(
-            text = line.text.ifEmpty { "···" },
-            style = if (isCurrent) {
-                MaterialTheme.typography.titleLarge
-            } else {
-                MaterialTheme.typography.bodyLarge
-            },
-            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-            color = if (isCurrent) highlightColor else contentColor,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // 主歌词（始终显示原文，TRANSLATION 模式例外）
+        val mainText = when (displayMode) {
+            LyricDisplayMode.ORIGINAL -> line.text
+            LyricDisplayMode.TRANSLATION -> line.translation ?: line.text
+            LyricDisplayMode.ROMANIZATION -> line.text // 原文+罗马音模式：主文本为原文
+            LyricDisplayMode.DUAL -> line.text
+        }
         
-        // 翻译歌词（如果有）
-        if (line.translation != null && line.translation.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(4.dp))
+        if (line.isWordByWord && isCurrent && displayMode == LyricDisplayMode.ORIGINAL) {
+            // 逐字高亮模式
+            WordByWordText(
+                words = line.words!!,
+                currentPosition = currentPosition,
+                highlightColor = highlightColor,
+                normalColor = contentColor
+            )
+        } else {
+            // 普通文本显示 - 使用 titleMedium 字号，通过颜色和字重区分
             Text(
-                text = line.translation,
-                style = if (isCurrent) {
-                    MaterialTheme.typography.bodyLarge
-                } else {
-                    MaterialTheme.typography.bodyMedium
-                },
-                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
-                color = if (isCurrent) {
-                    highlightColor.copy(alpha = 0.8f)
-                } else {
-                    contentColor.copy(alpha = 0.7f)
-                },
+                text = mainText.ifEmpty { "···" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                color = if (isCurrent) highlightColor else contentColor,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+        
+        // 副歌词（双语模式显示译文，罗马音模式显示罗马音）
+        val subText = when (displayMode) {
+            LyricDisplayMode.DUAL -> line.translation
+            LyricDisplayMode.ROMANIZATION -> line.romanization
+            else -> null
+        }
+        
+        // 副歌词出现/消失动画（配合 animateContentSize 实现平滑高度过渡）
+        AnimatedVisibility(
+            visible = subText != null && subText.isNotEmpty(),
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(150))
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(2.dp))
+                // 副歌词使用 bodyMedium 字号
+                Text(
+                    text = subText ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                    color = if (isCurrent) {
+                        highlightColor.copy(alpha = 0.8f)
+                    } else {
+                        contentColor.copy(alpha = 0.7f)
+                    },
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
 
 /**
+ * 逐字高亮文本
+ * 使用 titleMedium 字号，与普通歌词保持一致
+ */
+@Composable
+private fun WordByWordText(
+    words: List<LyricWord>,
+    currentPosition: Long,
+    highlightColor: Color,
+    normalColor: Color
+) {
+    val annotatedString = buildAnnotatedString {
+        words.forEach { word ->
+            val isHighlighted = currentPosition >= word.startTimeMs
+            
+            // 根据是否高亮决定颜色
+            val color = if (isHighlighted) {
+                highlightColor
+            } else {
+                normalColor
+            }
+            
+            withStyle(
+                SpanStyle(
+                    color = color,
+                    fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal
+                )
+            ) {
+                append(word.text)
+            }
+        }
+    }
+    
+    Text(
+        text = annotatedString,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold, // 当前行整体加粗
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+/**
  * 沉浸模式歌词视图
- * 
- * 全屏显示，隐藏所有控制元素
  */
 @Composable
 fun ImmersiveLyricsView(
     lyrics: List<LyricLine>,
     currentIndex: Int,
+    currentPosition: Long,
+    displayMode: LyricDisplayMode,
+    onSeekTo: (Long) -> Unit,
     onExitImmersive: () -> Unit,
     modifier: Modifier = Modifier,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
@@ -220,6 +584,9 @@ fun ImmersiveLyricsView(
     PlayerLyrics(
         lyrics = lyrics,
         currentIndex = currentIndex,
+        currentPosition = currentPosition,
+        displayMode = displayMode,
+        onSeekTo = onSeekTo,
         onToggleImmersive = onExitImmersive,
         modifier = modifier,
         contentColor = contentColor,
