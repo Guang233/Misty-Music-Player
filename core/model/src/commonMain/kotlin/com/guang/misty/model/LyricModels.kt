@@ -30,7 +30,7 @@ data class LyricLine(
     /**
      * 是否为逐字歌词
      */
-    val isWordByWord: Boolean get() = words != null && words.isNotEmpty()
+    val isWordByWord: Boolean get() = !words.isNullOrEmpty()
     
     /**
      * 根据播放位置获取当前高亮的字索引

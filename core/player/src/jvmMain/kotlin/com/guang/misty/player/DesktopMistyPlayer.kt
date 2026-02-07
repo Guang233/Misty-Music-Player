@@ -168,7 +168,7 @@ class DesktopMistyPlayer : MistyPlayer {
                         ) }
                     }
                 }
-                delay(200L)
+                delay(50L)
             }
         }
     }

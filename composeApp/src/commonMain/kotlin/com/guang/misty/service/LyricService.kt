@@ -97,7 +97,7 @@ object LyricService {
                 // }
                 
                 // 3. 更新状态
-                if (lines != null && lines.isNotEmpty()) {
+                if (!lines.isNullOrEmpty()) {
                     val hasTranslation = lines.any { it.translation != null }
                     val hasRomanization = lines.any { it.romanization != null }
                     

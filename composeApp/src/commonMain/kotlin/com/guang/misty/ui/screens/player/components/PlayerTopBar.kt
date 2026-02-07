@@ -28,6 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import misty.composeapp.generated.resources.Res
+import misty.composeapp.generated.resources.action_back
+import misty.composeapp.generated.resources.action_more
+import misty.composeapp.generated.resources.player_immersive_enter
+import misty.composeapp.generated.resources.player_immersive_exit
 import misty.composeapp.generated.resources.playing_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -72,7 +76,7 @@ fun PlayerTopBar(
         IconButton(onClick = onNavigateBack) {
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = "返回",
+                contentDescription = stringResource(Res.string.action_back),
                 modifier = Modifier.size(28.dp),
                 tint = contentColor
             )
@@ -131,7 +135,7 @@ fun PlayerTopBar(
             IconButton(onClick = onToggleImmersive) {
                 Icon(
                     imageVector = if (isImmersive) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                    contentDescription = if (isImmersive) "退出沉浸模式" else "进入沉浸模式",
+                    contentDescription = stringResource(if (isImmersive) Res.string.player_immersive_exit else Res.string.player_immersive_enter),
                     tint = contentColor
                 )
             }
@@ -141,7 +145,7 @@ fun PlayerTopBar(
         IconButton(onClick = onMoreClick) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
-                contentDescription = "更多选项",
+                contentDescription = stringResource(Res.string.action_more),
                 tint = contentColor
             )
         }

@@ -1,11 +1,14 @@
 package com.guang.misty.player
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -40,6 +43,18 @@ class MistyPlaybackService : MediaSessionService() {
         @Volatile
         var sharedSession: MediaSession? = null
             private set
+    }
+    
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 必须尽快调用 startForeground()，否则 Android 会 ANR
+        createNotificationChannel()
+        val notification = createPlaceholderNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(1, notification)
+        }
+        return super.onStartCommand(intent, flags, startId)
     }
     
     override fun onCreate() {
@@ -85,6 +100,15 @@ class MistyPlaybackService : MediaSessionService() {
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager?.createNotificationChannel(channel)
         }
+    }
+    
+    private fun createPlaceholderNotification(): Notification {
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Misty")
+            .setContentText("正在准备播放...")
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSilent(true)
+            .build()
     }
     
     private fun createPendingIntent(): PendingIntent {

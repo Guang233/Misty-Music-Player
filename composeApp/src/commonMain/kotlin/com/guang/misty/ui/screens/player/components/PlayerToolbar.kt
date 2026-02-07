@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guang.misty.player.RepeatMode
 import misty.composeapp.generated.resources.Res
+import misty.composeapp.generated.resources.action_more
 import misty.composeapp.generated.resources.player_queue
 import misty.composeapp.generated.resources.player_repeat
 import misty.composeapp.generated.resources.player_repeat_one
@@ -143,7 +144,7 @@ fun PlayerToolbar(
         ) {
             Icon(
                 imageVector = Icons.Default.MoreHoriz,
-                contentDescription = "更多选项",
+                contentDescription = stringResource(Res.string.action_more),
                 modifier = Modifier.size(22.dp),
                 tint = contentColor.copy(alpha = 0.7f)
             )
@@ -282,7 +283,7 @@ fun PlayerToolbarRight(
         ) {
             Icon(
                 imageVector = Icons.Default.MoreHoriz,
-                contentDescription = "更多选项",
+                contentDescription = stringResource(Res.string.action_more),
                 modifier = Modifier.size(20.dp),
                 tint = contentColor.copy(alpha = 0.7f)
             )

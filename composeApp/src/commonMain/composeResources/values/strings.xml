@@ -150,6 +150,13 @@
     <string name="plugin_login_desktop_error_empty">Could not parse valid cookies, please check the format</string>
     <string name="plugin_login_desktop_error_parse">Cookie parsing failed: %1$s</string>
 
+    <!-- Player UI -->
+    <string name="player_artists">Artists</string>
+    <string name="player_no_lyrics">No lyrics</string>
+    <string name="player_immersive_enter">Enter immersive mode</string>
+    <string name="player_immersive_exit">Exit immersive mode</string>
+    <string name="player_preparing">Preparing playback...</string>
+    
     <!-- Errors -->
     <string name="error_network">Network error</string>
     <string name="error_load_failed">Failed to load</string>

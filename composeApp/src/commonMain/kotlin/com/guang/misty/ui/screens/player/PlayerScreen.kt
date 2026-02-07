@@ -178,6 +178,7 @@ fun PlayerScreen(
                     isPlaying = playerState.isPlaying,
                     position = playerState.position,
                     duration = playerState.duration,
+                    bufferedPosition = playerState.bufferedPosition,
                     repeatMode = playerState.repeatMode,
                     shuffleEnabled = playerState.shuffleEnabled,
                     isFavorite = isFavorite,
@@ -220,6 +221,7 @@ fun PlayerScreen(
                     isPlaying = playerState.isPlaying,
                     position = playerState.position,
                     duration = playerState.duration,
+                    bufferedPosition = playerState.bufferedPosition,
                     repeatMode = playerState.repeatMode,
                     shuffleEnabled = playerState.shuffleEnabled,
                     isFavorite = isFavorite,
@@ -275,6 +277,7 @@ private fun CompactPlayerLayout(
     isPlaying: Boolean,
     position: Long,
     duration: Long,
+    bufferedPosition: Long,
     repeatMode: RepeatMode,
     shuffleEnabled: Boolean,
     isFavorite: Boolean,
@@ -359,8 +362,10 @@ private fun CompactPlayerLayout(
                             artists = artists,
                             onTitleClick = onTitleClick,
                             onArtistClick = onArtistClick,
+                            modifier = Modifier.padding(horizontal = 24.dp),
                             contentColor = contentColor,
-                            centered = true
+                            centered = true,
+                            isCompact = true
                         )
                     }
                 }
@@ -434,6 +439,7 @@ private fun CompactPlayerLayout(
                     position = position,
                     duration = duration,
                     onSeek = onSeek,
+                    bufferedPosition = bufferedPosition,
                     contentColor = contentColor
                 )
                 
@@ -486,6 +492,7 @@ private fun ExpandedPlayerLayout(
     isPlaying: Boolean,
     position: Long,
     duration: Long,
+    bufferedPosition: Long,
     repeatMode: RepeatMode,
     shuffleEnabled: Boolean,
     isFavorite: Boolean,
@@ -578,9 +585,10 @@ private fun ExpandedPlayerLayout(
                         artists = artists,
                         onTitleClick = onTitleClick,
                         onArtistClick = onArtistClick,
-                        modifier = Modifier.widthIn(max = 300.dp),
+                        modifier = Modifier.widthIn(max = 400.dp),
                         contentColor = contentColor,
-                        centered = true
+                        centered = true,
+                        isCompact = false
                     )
                 }
             }
@@ -644,6 +652,7 @@ private fun ExpandedPlayerLayout(
                     duration = duration,
                     onSeek = onSeek,
                     modifier = Modifier.fillMaxWidth(),
+                    bufferedPosition = bufferedPosition,
                     contentColor = contentColor
                 )
                 

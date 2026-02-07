@@ -150,6 +150,13 @@
     <string name="plugin_login_desktop_error_empty">未能解析到有效的 Cookie，请检查格式</string>
     <string name="plugin_login_desktop_error_parse">Cookie 解析失败：%1$s</string>
 
+    <!-- Player UI -->
+    <string name="player_artists">艺术家</string>
+    <string name="player_no_lyrics">暂无歌词</string>
+    <string name="player_immersive_enter">进入沉浸模式</string>
+    <string name="player_immersive_exit">退出沉浸模式</string>
+    <string name="player_preparing">正在准备播放...</string>
+    
     <!-- Errors -->
     <string name="error_network">网络错误</string>
     <string name="error_load_failed">加载失败</string>

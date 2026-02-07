@@ -35,8 +35,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -44,20 +46,24 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.guang.misty.model.LyricDisplayMode
 import com.guang.misty.model.LyricLine
 import com.guang.misty.model.LyricWord
+import misty.composeapp.generated.resources.Res
+import misty.composeapp.generated.resources.player_no_lyrics
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -316,7 +322,7 @@ private fun EmptyLyricsView(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "暂无歌词",
+            text = stringResource(Res.string.player_no_lyrics),
             style = MaterialTheme.typography.bodyLarge,
             color = contentColor.copy(alpha = 0.5f)
         )
@@ -378,7 +384,7 @@ private fun LyricsListView(
                 distance == 1 -> 0.7f
                 distance == 2 -> 0.5f
                 distance == 3 -> 0.35f
-                else -> 0.2f
+                else -> 0.25f
             }
             
             LyricLineItem(
@@ -429,7 +435,7 @@ private fun LyricLineItem(
     
     // 当前行的缩放效果（微微放大，不会导致换行）
     val scale by animateFloatAsState(
-        targetValue = if (isCurrent) 1.03f else 1f,
+        targetValue = if (isCurrent) 1.05f else 1f,
         animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
         label = "scale"
     )
@@ -471,8 +477,8 @@ private fun LyricLineItem(
             LyricDisplayMode.DUAL -> line.text
         }
         
-        if (line.isWordByWord && isCurrent && displayMode == LyricDisplayMode.ORIGINAL) {
-            // 逐字高亮模式
+        if (line.isWordByWord && isCurrent) {
+            // 逐字高亮模式（有逐字歌词时优先显示，不受显示模式影响）
             WordByWordText(
                 words = line.words!!,
                 currentPosition = currentPosition,
@@ -525,8 +531,12 @@ private fun LyricLineItem(
 }
 
 /**
- * 逐字高亮文本
- * 使用 titleMedium 字号，与普通歌词保持一致
+ * 逐字高亮文本 - 帧动画驱动
+ * 
+ * 整行文本渲染，两层叠加 + DstOut 渐变遮罩：
+ * - 底层：淡主题色（未播放部分）
+ * - 上层：全亮主题色（已播放部分）
+ * - 利用每个字的时长，用 withFrameMillis 帧循环驱动 60fps 平滑动画
  */
 @Composable
 private fun WordByWordText(
@@ -535,35 +545,120 @@ private fun WordByWordText(
     highlightColor: Color,
     normalColor: Color
 ) {
-    val annotatedString = buildAnnotatedString {
-        words.forEach { word ->
-            val isHighlighted = currentPosition >= word.startTimeMs
-            
-            // 根据是否高亮决定颜色
-            val color = if (isHighlighted) {
-                highlightColor
-            } else {
-                normalColor
-            }
-            
-            withStyle(
-                SpanStyle(
-                    color = color,
-                    fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal
-                )
-            ) {
-                append(word.text)
+    val density = LocalDensity.current
+    val fullText = remember(words) { words.joinToString("") { it.text } }
+    val totalChars = remember(words) { words.sumOf { it.text.length } }
+    
+    // 从 currentPosition 检测当前播放的字
+    val activeWordIndex = words.indexOfLast { currentPosition >= it.startTimeMs }
+    
+    // 已完成的字符占比（基准进度）
+    val completedChars = if (activeWordIndex > 0) {
+        words.take(activeWordIndex).sumOf { it.text.length }
+    } else 0
+    val baseProgress = if (totalChars > 0) completedChars.toFloat() / totalChars else 0f
+    val wordCharFraction = if (activeWordIndex >= 0 && totalChars > 0) {
+        words[activeWordIndex].text.length.toFloat() / totalChars
+    } else 0f
+    
+    // 帧动画驱动的字内进度 (0.0 ~ 1.0)
+    // 使用 remember(activeWordIndex) 保证字切换时立即重置，避免闪烁
+    val initialWordProgress = if (activeWordIndex >= 0) {
+        val word = words[activeWordIndex]
+        val duration = word.endTimeMs - word.startTimeMs
+        if (duration > 0 && currentPosition < word.endTimeMs) {
+            ((currentPosition - word.startTimeMs).toFloat() / duration).coerceIn(0f, 1f)
+        } else 1f
+    } else 0f
+    
+    var wordAnimProgress by remember(activeWordIndex) { mutableFloatStateOf(initialWordProgress) }
+    
+    LaunchedEffect(activeWordIndex) {
+        if (activeWordIndex < 0 || totalChars == 0) return@LaunchedEffect
+        
+        val word = words[activeWordIndex]
+        val wordDuration = word.endTimeMs - word.startTimeMs
+        
+        if (wordDuration <= 0 || currentPosition >= word.endTimeMs) {
+            wordAnimProgress = 1f
+            return@LaunchedEffect
+        }
+        
+        val remainingMs = ((1f - initialWordProgress) * wordDuration).toLong()
+        if (remainingMs <= 0) {
+            wordAnimProgress = 1f
+            return@LaunchedEffect
+        }
+        
+        // 60fps 帧循环：自主驱动字内平滑动画
+        val startFrame = withFrameMillis { it }
+        while (wordAnimProgress < 1f) {
+            withFrameMillis { frameTime ->
+                val elapsed = frameTime - startFrame
+                val additional = (elapsed.toFloat() / remainingMs) * (1f - initialWordProgress)
+                wordAnimProgress = (initialWordProgress + additional).coerceIn(0f, 1f)
             }
         }
     }
     
-    Text(
-        text = annotatedString,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold, // 当前行整体加粗
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth()
-    )
+    // 最终行进度
+    val lineProgress = (baseProgress + wordCharFraction * wordAnimProgress).coerceIn(0f, 1f)
+    
+    // 渐变边缘宽度（固定像素，约 1/3 个字宽）
+    val gradientEdgePx = with(density) { 4.dp.toPx() }
+    
+    // 淡主题色（未播放的字）
+    val dimColor = highlightColor.copy(alpha = 0.35f)
+    
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        // 底层：淡主题色（未播放部分）
+        Text(
+            text = fullText,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = dimColor,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        
+        // 上层：高亮色，用 DstOut 渐变遮罩
+        Text(
+            text = fullText,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = highlightColor,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .drawWithContent {
+                    drawContent()
+                    
+                    if (lineProgress < 1f) {
+                        val clipEnd = size.width * lineProgress
+                        val gradStart = ((clipEnd - gradientEdgePx) / size.width).coerceIn(0f, 1f)
+                        val gradEnd = ((clipEnd + gradientEdgePx * 0.5f) / size.width).coerceIn(gradStart + 0.001f, 1f)
+                        
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color.Transparent,
+                                    gradStart to Color.Transparent,
+                                    gradEnd to Color.Black,
+                                    1f to Color.Black
+                                )
+                            ),
+                            blendMode = BlendMode.DstOut
+                        )
+                    }
+                }
+        )
+    }
 }
 
 /**

@@ -52,6 +52,7 @@ fun PlayerProgressBar(
     duration: Long,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    bufferedPosition: Long = 0L,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     trackHeight: Dp = 4.dp,
     expandedTrackHeight: Dp = trackHeight * 2,
@@ -98,9 +99,15 @@ fun PlayerProgressBar(
         position
     }
     
+    // 缓冲进度
+    val bufferedProgress = if (duration > 0) {
+        (bufferedPosition.toFloat() / duration).coerceIn(0f, 1f)
+    } else 0f
+    
     // 使用主题色作为进度条颜色
     val activeColor = MaterialTheme.colorScheme.primary
-    val inactiveColor = contentColor.copy(alpha = 0.3f)
+    val bufferedColor = activeColor.copy(alpha = 0.25f)
+    val inactiveColor = contentColor.copy(alpha = 0.15f)
     
     Column(modifier = modifier.fillMaxWidth()) {
         // 自定义细进度条（无 thumb）
@@ -174,6 +181,17 @@ fun PlayerProgressBar(
                     cornerRadius = cornerRadius
                 )
                 
+                // 绘制缓冲部分
+                val bufferedWidth = size.width * bufferedProgress
+                if (bufferedWidth > 0) {
+                    drawRoundRect(
+                        color = bufferedColor,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(bufferedWidth, trackHeightPx),
+                        cornerRadius = cornerRadius
+                    )
+                }
+                
                 // 绘制已播放部分
                 val progressWidth = size.width * progress
                 if (progressWidth > 0) {
@@ -219,6 +237,7 @@ fun PlayerProgressBarExpanded(
     duration: Long,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    bufferedPosition: Long = 0L,
     contentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     PlayerProgressBar(
@@ -226,6 +245,7 @@ fun PlayerProgressBarExpanded(
         duration = duration,
         onSeek = onSeek,
         modifier = modifier,
+        bufferedPosition = bufferedPosition,
         contentColor = contentColor,
         trackHeight = 3.dp,
         expandedTrackHeight = 6.dp,

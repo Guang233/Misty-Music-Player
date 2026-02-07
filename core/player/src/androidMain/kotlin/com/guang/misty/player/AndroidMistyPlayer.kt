@@ -196,7 +196,7 @@ class AndroidMistyPlayer(
                         bufferedPosition = p.bufferedPosition
                     ) }
                 }
-                delay(200L)
+                delay(50L)
             }
         }
     }
